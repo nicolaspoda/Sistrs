@@ -31,7 +31,7 @@ import type { EventShoppingListItem } from "../../lib/types";
 const EVENT_SELECT = `
   *,
   category:categories(id, name, emoji, created_at),
-  channel:channels(id, organizer_id, organizer:profiles(id, first_name, last_name, avatar_url)),
+  channel:channels(id, organizer_id, organizer:profiles!channels_organizer_id_fkey(id, first_name, last_name, avatar_url)),
   registrations:event_registrations(id, status, participant_id, participant:profiles(id, first_name, last_name, avatar_url))
 `;
 
