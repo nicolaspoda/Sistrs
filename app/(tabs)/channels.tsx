@@ -26,6 +26,7 @@ type ChannelRow = {
   description: string | null;
   organizer: Profile | null;
   isSubscribed: boolean;
+  hasNewContent: boolean;
 };
 
 export default function ChannelsScreen() {
@@ -46,7 +47,7 @@ export default function ChannelsScreen() {
         .select("id, organizer_id, name, description, organizer:profiles!channels_organizer_id_fkey(*)")
         .order("name", { ascending: true }),
       profile
-        ? supabase.from("channel_subscriptions").select("channel_id").eq("subscriber_id", profile.id)
+        ? supabase.from("channel_subscriptions").select("channel_id, last_viewed_at").eq("subscriber_id", profile.id)
         : Promise.resolve({ data: [], error: null }),
     ]);
 
@@ -61,7 +62,30 @@ export default function ChannelsScreen() {
       return;
     }
 
-    const subscribedIds = new Set((subscriptionsData ?? []).map((row) => row.channel_id as string));
+    const subscriptions = subscriptionsData ?? [];
+    const subscribedIds = new Set(subscriptions.map((row: any) => row.channel_id as string));
+    const lastViewedByChannel = new Map(
+      subscriptions.map((row: any) => [row.channel_id as string, row.last_viewed_at as string | null])
+    );
+
+    let newContentChannelIds = new Set<string>();
+    if (subscriptions.length > 0) {
+      const channelIds = subscriptions.map((row: any) => row.channel_id as string);
+      const [{ data: postsData }, { data: pollsData }] = await Promise.all([
+        supabase.from("channel_posts").select("channel_id, created_at").in("channel_id", channelIds),
+        supabase.from("polls").select("channel_id, created_at").in("channel_id", channelIds),
+      ]);
+
+      const items = [...(postsData ?? []), ...(pollsData ?? [])];
+      newContentChannelIds = new Set(
+        items
+          .filter((item: any) => {
+            const lastViewedAt = lastViewedByChannel.get(item.channel_id);
+            return !lastViewedAt || new Date(item.created_at) > new Date(lastViewedAt);
+          })
+          .map((item: any) => item.channel_id as string)
+      );
+    }
 
     const rows: ChannelRow[] = (channelsData ?? []).map((row: any) => ({
       id: row.id,
@@ -70,6 +94,7 @@ export default function ChannelsScreen() {
       description: row.description,
       organizer: (row.organizer as Profile | null) ?? null,
       isSubscribed: subscribedIds.has(row.id),
+      hasNewContent: newContentChannelIds.has(row.id),
     }));
 
     setChannels(rows);
@@ -195,7 +220,10 @@ function ChannelListItem({ channel, isPending, onPress, onToggleSubscription }: 
 
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.75}>
-      <Avatar url={channel.organizer?.avatar_url} name={organizerName} size={48} />
+      <View style={styles.avatarWrapper}>
+        <Avatar url={channel.organizer?.avatar_url} name={organizerName} size={48} />
+        {channel.isSubscribed && channel.hasNewContent ? <View style={styles.unreadDot} /> : null}
+      </View>
       <View style={styles.rowInfo}>
         <Text style={styles.rowName}>{channel.name}</Text>
         {channel.description ? (
@@ -268,6 +296,20 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  avatarWrapper: {
+    position: "relative",
+  },
+  unreadDot: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: Colors.danger,
+    borderWidth: 2,
+    borderColor: Colors.background,
   },
   rowInfo: {
     flex: 1,

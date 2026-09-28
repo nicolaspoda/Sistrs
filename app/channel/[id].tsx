@@ -116,6 +116,16 @@ export default function ChannelDetailScreen() {
         .eq("subscriber_id", profile.id)
         .maybeSingle();
       setIsSubscribed(Boolean(subscriptionData));
+
+      if (subscriptionData) {
+        // Marque le canal comme vu : efface le point "nouveau contenu"
+        // sur l'onglet Canaux et dans la liste des canaux suivis.
+        void supabase
+          .from("channel_subscriptions")
+          .update({ last_viewed_at: new Date().toISOString() })
+          .eq("channel_id", id)
+          .eq("subscriber_id", profile.id);
+      }
     }
 
     const [{ data: postsData, error: postsError }, { data: pollsData, error: pollsError }] = await Promise.all([
