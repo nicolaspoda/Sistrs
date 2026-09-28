@@ -1,5 +1,11 @@
 import { Stack } from "expo-router";
 
+import { SignUpDraftProvider } from "./_signup-draft";
+
 export default function AuthLayout() {
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <SignUpDraftProvider>
+      <Stack screenOptions={{ headerShown: false }} />
+    </SignUpDraftProvider>
+  );
 }
