@@ -51,6 +51,12 @@ export default function ProfileScreen() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
 
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
+  const [isEditingCategories, setIsEditingCategories] = useState(false);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [isSavingCategories, setIsSavingCategories] = useState(false);
+  const MAX_PARTICIPANT_CATEGORIES = 5;
+
   useEffect(() => {
     setFirstName(profile?.first_name ?? "");
     setLastName(profile?.last_name ?? "");
@@ -92,6 +98,20 @@ export default function ProfileScreen() {
     loadUnreadCount();
     loadCategories();
   }, [loadUnreadCount, loadCategories]);
+
+  useEffect(() => {
+    let isMounted = true;
+    supabase
+      .from("categories")
+      .select("*")
+      .order("name", { ascending: true })
+      .then(({ data }) => {
+        if (isMounted && data) setAllCategories(data as Category[]);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   if (!profile) {
     return (
@@ -167,6 +187,53 @@ export default function ProfileScreen() {
     setLastName(profile.last_name);
     setBio(profile.bio ?? "");
     setIsEditing(false);
+  };
+
+  const handleStartEditCategories = () => {
+    setSelectedCategoryIds(categories.map((category) => category.id));
+    setIsEditingCategories(true);
+  };
+
+  const handleToggleCategory = (categoryId: string) => {
+    setSelectedCategoryIds((prev) => {
+      if (prev.includes(categoryId)) {
+        return prev.filter((id) => id !== categoryId);
+      }
+      if (profile.role === "participant" && prev.length >= MAX_PARTICIPANT_CATEGORIES) {
+        Alert.alert("Maximum atteint", `Tu peux choisir jusqu'à ${MAX_PARTICIPANT_CATEGORIES} préférences.`);
+        return prev;
+      }
+      return [...prev, categoryId];
+    });
+  };
+
+  const handleCancelEditCategories = () => {
+    setIsEditingCategories(false);
+  };
+
+  const handleSaveCategories = async () => {
+    const table = profile.role === "organizer" ? "organizer_specialties" : "participant_preferences";
+    setIsSavingCategories(true);
+    try {
+      const { error: deleteError } = await supabase.from(table).delete().eq("profile_id", profile.id);
+      if (deleteError) throw deleteError;
+
+      if (selectedCategoryIds.length > 0) {
+        const rows = selectedCategoryIds.map((categoryId) => ({
+          profile_id: profile.id,
+          category_id: categoryId,
+        }));
+        const { error: insertError } = await supabase.from(table).insert(rows);
+        if (insertError) throw insertError;
+      }
+
+      await loadCategories();
+      setIsEditingCategories(false);
+    } catch {
+      Alert.alert("Erreur", `La sauvegarde des ${profile.role === "organizer" ? "spécialités" : "préférences"} a échoué.`);
+    } finally {
+      setIsSavingCategories(false);
+    }
   };
 
   const handleSignOut = () => {
@@ -252,23 +319,76 @@ export default function ProfileScreen() {
           <Text style={styles.sectionLabel}>
             {profile.role === "organizer" ? "Spécialités" : "Préférences"}
           </Text>
-          {isLoadingCategories ? (
-            <ActivityIndicator color={Colors.primary} />
-          ) : categories.length === 0 ? (
-            <Text style={styles.bioText}>
-              {profile.role === "organizer" ? "Aucune spécialité renseignée." : "Aucune préférence renseignée."}
-            </Text>
+
+          {isEditingCategories ? (
+            <>
+              {profile.role === "participant" ? (
+                <Text style={styles.helperText}>
+                  Choisis jusqu'à {MAX_PARTICIPANT_CATEGORIES} catégories ({selectedCategoryIds.length}/{MAX_PARTICIPANT_CATEGORIES}).
+                </Text>
+              ) : null}
+              <View style={styles.categoriesWrap}>
+                {allCategories.map((category) => {
+                  const isSelected = selectedCategoryIds.includes(category.id);
+                  return (
+                    <TouchableOpacity
+                      key={category.id}
+                      onPress={() => handleToggleCategory(category.id)}
+                      style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.categoryChipText, isSelected && styles.categoryChipTextSelected]}>
+                        {category.emoji ? `${category.emoji} ` : ""}
+                        {category.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <View style={styles.editActionsRow}>
+                <PrimaryButton
+                  label="Annuler"
+                  variant="outline"
+                  onPress={handleCancelEditCategories}
+                  style={styles.editActionButton}
+                  disabled={isSavingCategories}
+                />
+                <PrimaryButton
+                  label="Enregistrer"
+                  onPress={handleSaveCategories}
+                  isLoading={isSavingCategories}
+                  style={styles.editActionButton}
+                />
+              </View>
+            </>
           ) : (
-            <View style={styles.categoriesWrap}>
-              {categories.map((category) => (
-                <View key={category.id} style={styles.categoryChip}>
-                  <Text style={styles.categoryChipText}>
-                    {category.emoji ? `${category.emoji} ` : ""}
-                    {category.name}
-                  </Text>
+            <>
+              {isLoadingCategories ? (
+                <ActivityIndicator color={Colors.primary} />
+              ) : categories.length === 0 ? (
+                <Text style={styles.bioText}>
+                  {profile.role === "organizer" ? "Aucune spécialité renseignée." : "Aucune préférence renseignée."}
+                </Text>
+              ) : (
+                <View style={styles.categoriesWrap}>
+                  {categories.map((category) => (
+                    <View key={category.id} style={styles.categoryChip}>
+                      <Text style={styles.categoryChipText}>
+                        {category.emoji ? `${category.emoji} ` : ""}
+                        {category.name}
+                      </Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
-            </View>
+              )}
+              <PrimaryButton
+                label="Modifier"
+                variant="outline"
+                onPress={handleStartEditCategories}
+                style={styles.editCategoriesButton}
+              />
+            </>
           )}
         </View>
 
@@ -419,6 +539,20 @@ const styles = StyleSheet.create({
     color: Colors.primaryDark,
     fontSize: 13,
     fontWeight: "600",
+  },
+  categoryChipSelected: {
+    backgroundColor: Colors.primary,
+  },
+  categoryChipTextSelected: {
+    color: Colors.white,
+  },
+  helperText: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    marginBottom: 10,
+  },
+  editCategoriesButton: {
+    marginTop: 12,
   },
   signOutButton: {
     marginTop: 4,
