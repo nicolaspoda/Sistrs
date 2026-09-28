@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Avatar } from "../../components/Avatar";
+import { BackButton } from "../../components/BackButton";
 import { EmptyState } from "../../components/EmptyState";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { ScreenContainer } from "../../components/ScreenContainer";
@@ -82,6 +83,7 @@ export default function OtherProfileScreen() {
   if (isLoading) {
     return (
       <ScreenContainer>
+        <BackButton style={styles.backButton} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
@@ -92,6 +94,7 @@ export default function OtherProfileScreen() {
   if (!profile) {
     return (
       <ScreenContainer>
+        <BackButton style={styles.backButton} />
         <EmptyState title="Profil introuvable" subtitle="Cette personne n'existe pas ou plus." />
       </ScreenContainer>
     );
@@ -103,6 +106,7 @@ export default function OtherProfileScreen() {
   return (
     <ScreenContainer>
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        <BackButton style={styles.backButton} />
         <View style={styles.avatarSection}>
           <Avatar url={profile.avatar_url} name={fullName} size={96} />
           <Text style={styles.name}>{fullName}</Text>
@@ -162,6 +166,10 @@ export default function OtherProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  backButton: {
+    marginLeft: 20,
+    marginTop: 8,
+  },
   loadingContainer: {
     flex: 1,
     alignItems: "center",

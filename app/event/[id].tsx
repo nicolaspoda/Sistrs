@@ -16,6 +16,7 @@ import {
 
 import { Avatar } from "../../components/Avatar";
 import { PrimaryButton } from "../../components/PrimaryButton";
+import { BackButton } from "../../components/BackButton";
 import { ScreenContainer } from "../../components/ScreenContainer";
 import {
   confirmedRegistrationsCount,
@@ -109,6 +110,7 @@ export default function EventDetailScreen() {
   if (isLoading) {
     return (
       <ScreenContainer>
+        <BackButton style={styles.floatingBack} />
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
@@ -119,6 +121,7 @@ export default function EventDetailScreen() {
   if (loadError || !event) {
     return (
       <ScreenContainer>
+        <BackButton style={styles.floatingBack} />
         <View style={styles.centered}>
           <Text style={styles.error}>{loadError ?? "Événement introuvable."}</Text>
         </View>
@@ -284,6 +287,7 @@ export default function EventDetailScreen() {
   return (
     <ScreenContainer>
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        <BackButton style={styles.scrollBack} />
         {event.cover_image_url ? (
           <Image source={{ uri: event.cover_image_url }} style={styles.cover} />
         ) : (
@@ -445,6 +449,14 @@ export default function EventDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  floatingBack: {
+    marginLeft: 20,
+    marginTop: 8,
+  },
+  scrollBack: {
+    marginLeft: 20,
+    marginTop: 8,
+  },
   centered: {
     flex: 1,
     alignItems: "center",

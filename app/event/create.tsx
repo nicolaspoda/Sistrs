@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { useEffect, useState, type PropsWithChildren } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, type ViewStyle } from "react-native";
 
+import { BackButton } from "../../components/BackButton";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { Colors } from "../../constants/colors";
 import { useAuth } from "../../lib/auth/AuthProvider";
@@ -190,6 +191,7 @@ export default function CreateEventScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <BackButton style={styles.backButton} />
       <Text style={styles.title}>Créer un événement</Text>
 
       <Field label="Titre">
@@ -357,6 +359,10 @@ function Field({ label, children, style }: FieldProps) {
 }
 
 const styles = StyleSheet.create({
+  backButton: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
   container: {
     flexGrow: 1,
     paddingHorizontal: 24,

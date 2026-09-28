@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
+import { BackButton } from "../components/BackButton";
 import { EmptyState } from "../components/EmptyState";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { Colors } from "../constants/colors";
@@ -137,6 +138,7 @@ export default function NotificationsScreen() {
   if (isLoading) {
     return (
       <ScreenContainer>
+        <BackButton style={styles.backButton} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
@@ -146,6 +148,7 @@ export default function NotificationsScreen() {
 
   return (
     <ScreenContainer>
+      <BackButton style={styles.backButton} />
       <Text style={styles.headerTitle}>Notifications</Text>
 
       <FlatList
@@ -184,6 +187,10 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
+  backButton: {
+    marginLeft: 20,
+    marginTop: 8,
+  },
   loadingContainer: {
     flex: 1,
     alignItems: "center",
