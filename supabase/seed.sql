@@ -102,23 +102,23 @@ on conflict (id) do nothing;
 -- Spécialités des organisatrices / préférences des participantes
 -- ----------------------------------------------------------------------------
 insert into organizer_specialties (profile_id, category_id)
-select 'a0000000-0000-0000-0000-000000000001', id from categories where name in ('Bar', 'Karaoké', 'Cocktails', 'Afterwork')
+select 'a0000000-0000-0000-0000-000000000001'::uuid, id from categories where name in ('Bar', 'Karaoké', 'Cocktails', 'Afterwork')
 union all
-select 'a0000000-0000-0000-0000-000000000002', id from categories where name in ('Yoga', 'Brunch', 'Randonnée', 'Spa & bien-être')
+select 'a0000000-0000-0000-0000-000000000002'::uuid, id from categories where name in ('Yoga', 'Brunch', 'Randonnée', 'Spa & bien-être')
 union all
-select 'a0000000-0000-0000-0000-000000000003', id from categories where name in ('Ciné', 'Expo & culture', 'Jeux de société')
+select 'a0000000-0000-0000-0000-000000000003'::uuid, id from categories where name in ('Ciné', 'Expo & culture', 'Jeux de société')
 on conflict do nothing;
 
 insert into participant_preferences (profile_id, category_id)
-select 'b0000000-0000-0000-0000-000000000001', id from categories where name in ('Afterwork', 'Bar', 'Cocktails')
+select 'b0000000-0000-0000-0000-000000000001'::uuid, id from categories where name in ('Afterwork', 'Bar', 'Cocktails')
 union all
-select 'b0000000-0000-0000-0000-000000000002', id from categories where name in ('Ciné', 'Shopping', 'Brunch')
+select 'b0000000-0000-0000-0000-000000000002'::uuid, id from categories where name in ('Ciné', 'Shopping', 'Brunch')
 union all
-select 'b0000000-0000-0000-0000-000000000003', id from categories where name in ('Karaoké', 'Bar', 'Danse')
+select 'b0000000-0000-0000-0000-000000000003'::uuid, id from categories where name in ('Karaoké', 'Bar', 'Danse')
 union all
-select 'b0000000-0000-0000-0000-000000000004', id from categories where name in ('Randonnée', 'Yoga', 'Spa & bien-être')
+select 'b0000000-0000-0000-0000-000000000004'::uuid, id from categories where name in ('Randonnée', 'Yoga', 'Spa & bien-être')
 union all
-select 'b0000000-0000-0000-0000-000000000005', id from categories where name in ('Ciné', 'Jeux de société', 'Expo & culture')
+select 'b0000000-0000-0000-0000-000000000005'::uuid, id from categories where name in ('Ciné', 'Jeux de société', 'Expo & culture')
 on conflict do nothing;
 
 -- ----------------------------------------------------------------------------
