@@ -1,4 +1,4 @@
-import { Link } from "expo-router";
+import { Link, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -9,6 +9,7 @@ import { useAuth } from "../../lib/auth/AuthProvider";
 
 export default function SignInScreen() {
   const { signIn } = useAuth();
+  const { justSignedUp } = useLocalSearchParams<{ justSignedUp?: string }>();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -41,6 +42,12 @@ export default function SignInScreen() {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Sistrs</Text>
         <Text style={styles.subtitle}>Connecte-toi pour retrouver tes sorties entre filles.</Text>
+
+        {justSignedUp === "1" ? (
+          <Text style={styles.successBanner}>
+            Compte créé avec succès ! Connecte-toi pour continuer.
+          </Text>
+        ) : null}
 
         <AuthTextField
           label="Email"
@@ -108,6 +115,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 16,
     textAlign: "center",
+  },
+  successBanner: {
+    color: Colors.success,
+    backgroundColor: Colors.primaryLight,
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 24,
   },
   submitButton: {
     marginTop: 8,

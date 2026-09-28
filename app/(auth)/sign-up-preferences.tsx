@@ -15,7 +15,7 @@ const MAX_PARTICIPANT_CATEGORIES = 5;
 
 export default function SignUpPreferencesScreen() {
   const { draft, updateDraft, resetDraft } = useSignUpDraft();
-  const { signUp } = useAuth();
+  const { signUp, signOut } = useAuth();
 
   const isParticipant = draft.role === "participant";
 
@@ -171,7 +171,12 @@ export default function SignUpPreferencesScreen() {
       }
 
       resetDraft();
-      router.replace("/(tabs)");
+      // On ne connecte pas automatiquement l'utilisatrice après la création
+      // du compte : on la déconnecte et on la renvoie vers l'écran de
+      // connexion, où elle doit saisir ses identifiants pour confirmer
+      // qu'elle les a bien retenus (choix produit explicite).
+      await signOut();
+      router.replace({ pathname: "/(auth)/sign-in", params: { justSignedUp: "1" } });
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Impossible de créer le compte. Réessaie."

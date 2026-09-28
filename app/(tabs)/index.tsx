@@ -34,7 +34,8 @@ export default function AccueilScreen() {
       .order("start_at", { ascending: true });
 
     if (error) {
-      setErrorMessage("Impossible de charger les événements. Réessaie.");
+      console.error("[events] load failed:", JSON.stringify(error, null, 2));
+      setErrorMessage(`Impossible de charger les événements (${error.message}). Réessaie.`);
       return;
     }
 
