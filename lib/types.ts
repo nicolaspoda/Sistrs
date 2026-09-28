@@ -51,6 +51,7 @@ export interface Profile {
   banner_url: string | null;
   id_document_url: string | null;
   face_id_enabled: boolean;
+  push_token: string | null;
   activity_count: number;
   /** Colonne générée côté base — ne jamais écrire cette valeur depuis le client. */
   status: UserStatus;

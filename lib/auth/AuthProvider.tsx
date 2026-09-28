@@ -9,6 +9,7 @@ import {
   type PropsWithChildren,
 } from "react";
 
+import { registerForPushNotificationsAsync } from "../push-notifications";
 import { uploadImageAsync } from "../storage";
 import { supabase } from "../supabase";
 import type { Profile } from "../types";
@@ -185,6 +186,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
     setProfile(null);
   }, []);
+
+  // Une fois le profil chargé, on demande le token push (permission +
+  // enregistrement) — échoue silencieusement si refusé/indisponible (voir
+  // lib/push-notifications.ts). Ne s'exécute qu'une fois par profil chargé,
+  // pas à chaque re-render.
+  useEffect(() => {
+    if (profile?.id) {
+      void registerForPushNotificationsAsync(profile.id);
+    }
+  }, [profile?.id]);
 
   const value = useMemo<AuthContextValue>(
     () => ({ session, profile, isLoading, signUp, signIn, signOut, refreshProfile }),
