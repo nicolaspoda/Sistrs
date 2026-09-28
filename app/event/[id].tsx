@@ -156,26 +156,46 @@ export default function EventDetailScreen() {
     try {
       // Face ID est obligatoire pour s'inscrire à un événement, sans repli
       // sur le code/l'empreinte de l'appareil (voir CLAUDE.md).
+      //
+      // Bypass de test — Expo Go ne peut pas appliquer les entrées Info.plist
+      // personnalisées (NSFaceIDUsageDescription), donc authenticateAsync()
+      // échoue toujours avec "missing_usage_description" tant qu'on n'est
+      // pas dans un development build. Hors production, on laisse passer
+      // l'inscription malgré l'échec pour pouvoir tester le reste de l'app.
+      // Jamais le cas en production : Face ID y reste réellement obligatoire.
+      const isProduction = process.env.EXPO_PUBLIC_ENV === "production";
+
       const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
       const hasFaceId = supportedTypes.includes(
         LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION
       );
 
-      if (!hasFaceId) {
+      if (!hasFaceId && isProduction) {
         setActionError("Face ID n'est pas disponible sur cet appareil, impossible de continuer.");
         setIsRegistering(false);
         return;
       }
 
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: "Confirme ton identité avec Face ID pour t'inscrire",
-        cancelLabel: "Annuler",
-        disableDeviceFallback: true,
-      });
-      if (!result.success) {
-        setActionError("La vérification Face ID a échoué ou a été annulée. Impossible de t'inscrire.");
-        setIsRegistering(false);
-        return;
+      if (hasFaceId) {
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: "Confirme ton identité avec Face ID pour t'inscrire",
+          cancelLabel: "Annuler",
+          disableDeviceFallback: true,
+        });
+        if (!result.success && isProduction) {
+          setActionError("La vérification Face ID a échoué ou a été annulée. Impossible de t'inscrire.");
+          setIsRegistering(false);
+          return;
+        }
+        if (!result.success) {
+          console.log(
+            "[dev] Face ID a échoué (probablement missing_usage_description sous Expo Go) — inscription poursuivie car EXPO_PUBLIC_ENV n'est pas 'production'."
+          );
+        }
+      } else {
+        console.log(
+          "[dev] Face ID indisponible sur cet appareil/build — inscription poursuivie car EXPO_PUBLIC_ENV n'est pas 'production'."
+        );
       }
 
       const { error } = await supabase.from("event_registrations").insert({

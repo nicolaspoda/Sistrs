@@ -247,6 +247,22 @@ export default function SignUpPreferencesScreen() {
         onPress={handleEnableFaceId}
         style={[styles.faceIdButton, faceIdError && styles.faceIdButtonError]}
       />
+      {/*
+        Bypass de test — Expo Go ne peut pas appliquer les entrées Info.plist
+        personnalisées (NSFaceIDUsageDescription), donc authenticateAsync()
+        échoue toujours avec "missing_usage_description" tant que l'app
+        tourne dans Expo Go plutôt que dans un development build. Ce lien
+        permet de continuer à tester le reste de l'app en attendant un vrai
+        build. Jamais affiché en production, et ne remplace pas la vraie
+        vérification Face ID une fois un development build en place.
+      */}
+      {process.env.EXPO_PUBLIC_ENV !== "production" && !faceIdEnabled ? (
+        <TouchableOpacity onPress={() => setFaceIdEnabled(true)} style={styles.devBypassLink}>
+          <Text style={styles.devBypassLinkText}>
+            Mode développeur : passer la vérification Face ID (Expo Go ne la supporte pas)
+          </Text>
+        </TouchableOpacity>
+      ) : null}
 
       {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
 
@@ -262,6 +278,15 @@ export default function SignUpPreferencesScreen() {
 }
 
 const styles = StyleSheet.create({
+  devBypassLink: {
+    marginTop: 8,
+    alignSelf: "flex-start",
+  },
+  devBypassLinkText: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    textDecorationLine: "underline",
+  },
   container: {
     flexGrow: 1,
     paddingHorizontal: 24,
