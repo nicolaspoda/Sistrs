@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
@@ -247,8 +248,8 @@ export default function ProfileScreen() {
     <ScreenContainer>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profil</Text>
-        <TouchableOpacity style={styles.bellButton} onPress={() => router.push("/notifications")}>
-          <Text style={styles.bellIcon}>🔔</Text>
+        <TouchableOpacity style={styles.bellButton} onPress={() => router.push("/notifications")} activeOpacity={0.85}>
+          <Ionicons name="notifications-outline" size={22} color={Colors.text} />
           {unreadCount > 0 ? (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
@@ -308,17 +309,36 @@ export default function ProfileScreen() {
             </>
           ) : (
             <>
-              <Text style={styles.sectionLabel}>Bio</Text>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionLabel}>Bio</Text>
+                <TouchableOpacity
+                  style={styles.editIconButton}
+                  onPress={() => setIsEditing(true)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="pencil" size={16} color={Colors.primary} />
+                </TouchableOpacity>
+              </View>
               <Text style={styles.bioText}>{profile.bio || "Aucune bio pour l'instant."}</Text>
-              <PrimaryButton label="Modifier" variant="outline" onPress={() => setIsEditing(true)} />
             </>
           )}
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionLabel}>
-            {profile.role === "organizer" ? "Spécialités" : "Préférences"}
-          </Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionLabel}>
+              {profile.role === "organizer" ? "Spécialités" : "Préférences"}
+            </Text>
+            {!isEditingCategories ? (
+              <TouchableOpacity
+                style={styles.editIconButton}
+                onPress={handleStartEditCategories}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="pencil" size={16} color={Colors.primary} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
 
           {isEditingCategories ? (
             <>
@@ -382,12 +402,6 @@ export default function ProfileScreen() {
                   ))}
                 </View>
               )}
-              <PrimaryButton
-                label="Modifier"
-                variant="outline"
-                onPress={handleStartEditCategories}
-                style={styles.editCategoriesButton}
-              />
             </>
           )}
         </View>
@@ -419,9 +433,6 @@ const styles = StyleSheet.create({
   },
   bellButton: {
     padding: 8,
-  },
-  bellIcon: {
-    fontSize: 22,
   },
   badge: {
     position: "absolute",
@@ -501,6 +512,20 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  editIconButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: Colors.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
   sectionLabel: {
     fontSize: 13,
     fontWeight: "700",
@@ -550,9 +575,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textMuted,
     marginBottom: 10,
-  },
-  editCategoriesButton: {
-    marginTop: 12,
   },
   signOutButton: {
     marginTop: 4,

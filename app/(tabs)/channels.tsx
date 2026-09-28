@@ -51,7 +51,8 @@ export default function ChannelsScreen() {
       .eq("subscriber_id", profile.id);
 
     if (subscriptionsError) {
-      setErrorMessage("Impossible de charger les canaux.");
+      console.error("[channels] load failed:", JSON.stringify(subscriptionsError, null, 2));
+      setErrorMessage(`Impossible de charger les canaux (${subscriptionsError.message}).`);
       return;
     }
 
