@@ -1,9 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 
+import { TabIconWithDot } from "../../components/TabIconWithDot";
 import { Colors } from "../../constants/colors";
+import { useTabBadges } from "../../lib/useTabBadges";
 
 export default function TabsLayout() {
+  const { hasPendingFriendRequests, hasUnreadMessages, hasNewChannelContent } = useTabBadges();
+
   return (
     <Tabs
       screenOptions={{
@@ -25,7 +29,7 @@ export default function TabsLayout() {
         options={{
           title: "Amis",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people" color={color} size={size} />
+            <TabIconWithDot name="people" color={color} size={size} showDot={hasPendingFriendRequests} />
           ),
         }}
       />
@@ -34,7 +38,7 @@ export default function TabsLayout() {
         options={{
           title: "Canaux",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="megaphone" color={color} size={size} />
+            <TabIconWithDot name="megaphone" color={color} size={size} showDot={hasNewChannelContent} />
           ),
         }}
       />
@@ -43,7 +47,7 @@ export default function TabsLayout() {
         options={{
           title: "Messages",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubble" color={color} size={size} />
+            <TabIconWithDot name="chatbubble" color={color} size={size} showDot={hasUnreadMessages} />
           ),
         }}
       />

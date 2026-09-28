@@ -58,17 +58,18 @@ begin
     v_id := v_users[i];
     v_email := v_emails[i];
 
+    -- `confirmed_at` est une colonne générée (GREATEST(email_confirmed_at,
+    -- phone_confirmed_at)) dans ce schéma GoTrue : on ne peut pas y insérer
+    -- de valeur, elle se déduit automatiquement de email_confirmed_at.
     insert into auth.users (
       instance_id, id, aud, role, email, encrypted_password,
       email_confirmed_at, confirmation_token, recovery_token,
       email_change_token_new, email_change, raw_app_meta_data,
-      raw_user_meta_data, is_super_admin, created_at, updated_at,
-      confirmed_at
+      raw_user_meta_data, is_super_admin, created_at, updated_at
     ) values (
       v_instance_id, v_id, 'authenticated', 'authenticated', v_email, v_password,
       now(), '', '', '', '',
-      '{"provider":"email","providers":["email"]}', '{}', false, now(), now(),
-      now()
+      '{"provider":"email","providers":["email"]}', '{}', false, now(), now()
     )
     on conflict (id) do nothing;
 
