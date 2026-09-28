@@ -24,6 +24,16 @@ const isProduction = process.env.EXPO_PUBLIC_ENV === "production";
 
 const MIN_PASSWORD_LENGTH = 8;
 
+// Date pré-sélectionnée à l'ouverture du calendrier de naissance quand le
+// champ est encore vide : 25 ans en arrière est un point de départ
+// plausible et laisse de la marge dans les deux sens (mois précédents ET
+// suivants) avant de toucher `maximumDate` (aujourd'hui).
+function eighteenPlusDefaultDate(): Date {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() - 25);
+  return date;
+}
+
 type FieldErrors = {
   firstName: boolean;
   lastName: boolean;
@@ -152,6 +162,8 @@ export default function SignUpScreen() {
           value={birthDate}
           onChange={setBirthDate}
           hasError={fieldErrors.birthDate}
+          maximumDate={new Date()}
+          defaultDate={eighteenPlusDefaultDate()}
         />
 
         <AuthTextField

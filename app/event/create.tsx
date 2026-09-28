@@ -3,6 +3,7 @@ import { useEffect, useState, type PropsWithChildren } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, type ViewStyle } from "react-native";
 
 import { BackButton } from "../../components/BackButton";
+import { DatePickerField } from "../../components/DatePickerField";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { Colors } from "../../constants/colors";
 import { useAuth } from "../../lib/auth/AuthProvider";
@@ -11,32 +12,26 @@ import type { Category } from "../../lib/types";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Parse "JJ/MM/AAAA" + "HH:MM" en Date locale, ou null si invalide. */
-function parseDateTime(dateStr: string, timeStr: string): Date | null {
-  const dateMatch = dateStr.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  const timeMatch = timeStr.trim().match(/^(\d{1,2}):(\d{2})$/);
+/** Parse une valeur "YYYY-MM-DDTHH:mm" (DatePickerField, mode datetime) en Date locale, ou null si vide/invalide. */
+function parseIsoDateTime(iso: string): Date | null {
+  if (!iso) return null;
+  const parsed = new Date(iso);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 
-  if (!dateMatch || !timeMatch) {
-    return null;
-  }
+/** Demain à 19h : valeur pré-sélectionnée à l'ouverture du calendrier de début. */
+function defaultStartDate(): Date {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  date.setHours(19, 0, 0, 0);
+  return date;
+}
 
-  const day = Number(dateMatch[1]);
-  const month = Number(dateMatch[2]);
-  const year = Number(dateMatch[3]);
-  const hours = Number(timeMatch[1]);
-  const minutes = Number(timeMatch[2]);
-
-  if (month < 1 || month > 12 || day < 1 || day > 31 || hours > 23 || minutes > 59) {
-    return null;
-  }
-
-  const date = new Date(year, month - 1, day, hours, minutes, 0, 0);
-
-  // Rejette les dates "débordantes" (ex. 31/02) que le constructeur Date corrige silencieusement.
-  if (date.getDate() !== day || date.getMonth() !== month - 1 || date.getFullYear() !== year) {
-    return null;
-  }
-
+/** Après-demain à 19h : valeur pré-sélectionnée à l'ouverture du calendrier de date limite. */
+function defaultDeadlineDate(): Date {
+  const date = new Date();
+  date.setDate(date.getDate() + 2);
+  date.setHours(19, 0, 0, 0);
   return date;
 }
 
@@ -49,14 +44,12 @@ export default function CreateEventScreen() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [startDate, setStartDate] = useState("");
-  const [startTime, setStartTime] = useState("");
+  const [startAtIso, setStartAtIso] = useState("");
   const [meetingPoint, setMeetingPoint] = useState("");
   const [meetingLat, setMeetingLat] = useState("");
   const [meetingLng, setMeetingLng] = useState("");
   const [maxParticipants, setMaxParticipants] = useState("");
-  const [deadlineDate, setDeadlineDate] = useState("");
-  const [deadlineTime, setDeadlineTime] = useState("");
+  const [deadlineIso, setDeadlineIso] = useState("");
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -103,15 +96,15 @@ export default function CreateEventScreen() {
       return;
     }
 
-    const startAt = parseDateTime(startDate, startTime);
+    const startAt = parseIsoDateTime(startAtIso);
     if (!startAt) {
-      setErrorMessage("Date/heure de début invalide (format JJ/MM/AAAA et HH:MM).");
+      setErrorMessage("Choisis la date et l'heure de début.");
       return;
     }
 
-    const deadline = parseDateTime(deadlineDate, deadlineTime);
+    const deadline = parseIsoDateTime(deadlineIso);
     if (!deadline) {
-      setErrorMessage("Date/heure limite d'inscription invalide (format JJ/MM/AAAA et HH:MM).");
+      setErrorMessage("Choisis la date et l'heure limite d'inscription.");
       return;
     }
 
@@ -241,28 +234,15 @@ export default function CreateEventScreen() {
       )}
 
       <Text style={styles.sectionLabel}>Date et heure de début</Text>
-      <View style={styles.row}>
-        <Field label="Date (JJ/MM/AAAA)" style={styles.rowField}>
-          <TextInput
-            style={styles.input}
-            value={startDate}
-            onChangeText={setStartDate}
-            placeholder="12/01/2027"
-            placeholderTextColor={Colors.textMuted}
-            keyboardType="numbers-and-punctuation"
-          />
-        </Field>
-        <Field label="Heure (HH:MM)" style={styles.rowField}>
-          <TextInput
-            style={styles.input}
-            value={startTime}
-            onChangeText={setStartTime}
-            placeholder="19:30"
-            placeholderTextColor={Colors.textMuted}
-            keyboardType="numbers-and-punctuation"
-          />
-        </Field>
-      </View>
+      <DatePickerField
+        label="Début de l'événement"
+        value={startAtIso}
+        onChange={setStartAtIso}
+        mode="datetime"
+        minimumDate={new Date()}
+        defaultDate={defaultStartDate()}
+        placeholder="Choisir une date et une heure"
+      />
 
       <Field label="Lieu">
         <TextInput
@@ -309,28 +289,15 @@ export default function CreateEventScreen() {
       </Field>
 
       <Text style={styles.sectionLabel}>Date limite d'inscription (≥ 24h avant le début)</Text>
-      <View style={styles.row}>
-        <Field label="Date (JJ/MM/AAAA)" style={styles.rowField}>
-          <TextInput
-            style={styles.input}
-            value={deadlineDate}
-            onChangeText={setDeadlineDate}
-            placeholder="11/01/2027"
-            placeholderTextColor={Colors.textMuted}
-            keyboardType="numbers-and-punctuation"
-          />
-        </Field>
-        <Field label="Heure (HH:MM)" style={styles.rowField}>
-          <TextInput
-            style={styles.input}
-            value={deadlineTime}
-            onChangeText={setDeadlineTime}
-            placeholder="19:30"
-            placeholderTextColor={Colors.textMuted}
-            keyboardType="numbers-and-punctuation"
-          />
-        </Field>
-      </View>
+      <DatePickerField
+        label="Date limite d'inscription"
+        value={deadlineIso}
+        onChange={setDeadlineIso}
+        mode="datetime"
+        minimumDate={new Date()}
+        defaultDate={defaultDeadlineDate()}
+        placeholder="Choisir une date et une heure"
+      />
 
       {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
 
