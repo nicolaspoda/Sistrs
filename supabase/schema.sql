@@ -59,11 +59,11 @@ create table profiles (
   activity_count integer not null default 0,  -- incrémenté à chaque participation confirmée à un événement
   status user_status generated always as (
     case
-      when activity_count >= 100 then 'diamant'
-      when activity_count >= 75  then 'or'
-      when activity_count >= 50  then 'argent'
-      when activity_count >= 25  then 'bronze'
-      else 'commun'
+      when activity_count >= 100 then 'diamant'::user_status
+      when activity_count >= 75  then 'or'::user_status
+      when activity_count >= 50  then 'argent'::user_status
+      when activity_count >= 25  then 'bronze'::user_status
+      else 'commun'::user_status
     end
   ) stored,
   created_at timestamptz not null default now(),

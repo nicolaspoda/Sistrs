@@ -9,6 +9,42 @@ Dernière mise à jour : 2026-09-28
 
 ## Fait
 
+- **Squelette du projet Expo mis en place** (à la racine du repo, pas de
+  sous-dossier) :
+  - Expo + React Native + TypeScript, navigation par Expo Router.
+  - Bug corrigé au passage : le champ généré `profiles.status` castait mal
+    ses littéraux texte vers l'enum `user_status` (`create table` échouait
+    à l'application de la migration) — chaque branche du `case` est
+    maintenant castée explicitement en `user_status`.
+  - Structure de dossiers : `app/` (routes Expo Router, groupe `(tabs)`),
+    `components/`, `lib/` (client Supabase dans `lib/supabase.ts`, lit
+    `EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY`),
+    `constants/` (couleurs de marque dans `constants/colors.ts`).
+  - Navigation par onglets (5 sections : Accueil, Amis, Canaux, Messages,
+    Profil) avec écrans placeholder (`components/PlaceholderScreen.tsx`).
+  - `.env.example` (documente `EXPO_PUBLIC_ENV`,
+    `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`) et
+    `.gitignore` adaptés Expo/RN/Supabase.
+  - Vérifié : le bundler Metro compile sans erreur en web (953 modules) et
+    en iOS (1343 modules) — `npx expo start` fonctionne.
+- **Supabase en local via le CLI** (pas de projet cloud pour l'instant) :
+  `supabase init` + migration initiale dans
+  `supabase/migrations/20260928000000_initial_schema.sql` (copie de
+  `supabase/schema.sql`, qui reste la source de vérité documentée dans
+  `CLAUDE.md`). `supabase start` fonctionne via Docker Desktop (déjà
+  installé et lancé sur la machine de l'utilisateur).
+  **Ports décalés dans `supabase/config.toml`** (55321/55322/55323/55324/
+  55327/55329 au lieu des ports par défaut 543xx) car un autre projet
+  Supabase local (`burnout-app`) tournait déjà sur cette machine et
+  occupait les ports par défaut — à garder en tête si le projet est cloné
+  sur une autre machine sans ce conflit (les ports par défaut
+  fonctionneraient aussi, mais autant rester cohérent).
+  Un fichier `.env` local (non commité) a été créé avec l'URL et la clé
+  publiable de l'instance locale — à régénérer via `supabase status` si
+  l'instance est recréée.
+
+## Fait (précédent)
+
 - **Nom du produit** : Sistrs (nom de code "Rosie" utilisé au tout début,
   abandonné).
 - **Stack technique tranchée** : React Native + Expo, Supabase, TanStack
@@ -27,8 +63,8 @@ Dernière mise à jour : 2026-09-28
   Couvre : profiles, categories, channels, events, event_registrations,
   event_shopping_list_items, event_reviews, channel_posts + likes, polls +
   options + votes, friendships, conversations + messages, notifications.
-  **Le champ `gender` sur `profiles` n'a pas encore été ajouté au schéma —
-  à faire en premier avant de coder l'inscription.**
+  Inclut le champ `gender` sur `profiles` (déclaratif, non contraint en
+  base — voir `CLAUDE.md`).
 - **Maquette Figma** : fichier créé ("Rosie - App événements entre filles",
   file_key `NVfRLxNqqJjL9DfbP9InpF`). Écrans réalisés et vérifiés visuellement :
   - Inscription 1 — Informations (infos perso, upload pièce d'identité, choix participante/organisatrice)
@@ -54,20 +90,17 @@ Dernière mise à jour : 2026-09-28
 
 ## En cours / à faire ensuite
 
-1. Ajouter le champ `gender` à `profiles` dans `supabase/schema.sql`
-   (actuellement absent — noté comme urgent).
-2. Scaffolding du projet Expo dans le repo `sistrs` (structure de dossiers,
-   config, dépendances de base).
-3. Mettre en place le projet Supabase (créer le projet, appliquer le
-   schéma, configurer Auth, Storage, RLS — aucune policy RLS écrite pour
-   l'instant, le schéma actuel n'en contient volontairement pas pour
-   rester lisible).
-4. Terminer les écrans manquants de la maquette Figma (liste ci-dessus) —
+1. Terminer les écrans manquants de la maquette Figma (liste ci-dessus) —
    soit en reprenant Figma si le quota est repassé, soit via un prototype
    cliquable alternatif (option évoquée mais pas retenue formellement).
-5. Décider du SDK de carte (Mapbox vs Google Maps) — pas encore tranché.
-6. Écrire les policies RLS Supabase une fois les écrans/flows principaux
-   clairs.
+2. Décider du SDK de carte (Mapbox vs Google Maps) — pas encore tranché.
+3. Écrire les policies RLS Supabase une fois les écrans/flows principaux
+   clairs (RLS pas encore activé — le schéma n'en contient volontairement
+   pas pour l'instant, pour rester lisible).
+4. Brancher l'auth Supabase (écrans d'inscription/connexion Figma déjà
+   faits) sur le client `lib/supabase.ts` maintenant en place.
+5. Construire le vrai contenu des 5 écrans d'onglets (actuellement de
+   simples placeholders).
 
 ## Décisions à ne pas reproposer (déjà tranchées)
 
