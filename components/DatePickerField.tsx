@@ -21,10 +21,23 @@ function isoToDisplay(iso: string): string {
   return `${day}/${month}/${year}`;
 }
 
+// Valeur de départ quand aucune date n'est encore choisie. `new Date()`
+// (aujourd'hui) posait un vrai problème d'UX : avec `maximumDate` fixé à
+// aujourd'hui, descendre vers un mois plus tard dans l'année en cours vise
+// une date future interdite, et le sélecteur "rebondissait" en arrière —
+// ça ressemblait à un bug. 25 ans en arrière est un point de départ
+// plausible pour une date de naissance et laisse de la marge dans les deux
+// sens (mois précédents ET suivants) avant de toucher une limite.
+function defaultBirthDate(): Date {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() - 25);
+  return date;
+}
+
 function isoToDate(iso: string): Date {
-  if (!iso) return new Date();
+  if (!iso) return defaultBirthDate();
   const parsed = new Date(`${iso}T00:00:00`);
-  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  return Number.isNaN(parsed.getTime()) ? defaultBirthDate() : parsed;
 }
 
 function dateToIso(date: Date): string {
