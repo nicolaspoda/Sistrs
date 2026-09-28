@@ -27,7 +27,7 @@ import {
 import { Colors } from "../../constants/colors";
 import { useAuth } from "../../lib/auth/AuthProvider";
 import { supabase } from "../../lib/supabase";
-import type { EventShoppingListItem } from "../../lib/types";
+import type { EventReview, EventShoppingListItem } from "../../lib/types";
 
 const EVENT_SELECT = `
   *,
@@ -40,6 +40,10 @@ type RegistrationWithProfile = {
   id: string;
   status: string;
   participant_id: string;
+  participant: { id: string; first_name: string; last_name: string; avatar_url: string | null } | null;
+};
+
+type ReviewWithParticipant = EventReview & {
   participant: { id: string; first_name: string; last_name: string; avatar_url: string | null } | null;
 };
 
@@ -58,6 +62,12 @@ export default function EventDetailScreen() {
   const [shoppingItems, setShoppingItems] = useState<EventShoppingListItem[]>([]);
   const [newItemLabel, setNewItemLabel] = useState("");
   const [isAddingItem, setIsAddingItem] = useState(false);
+
+  const [reviews, setReviews] = useState<ReviewWithParticipant[]>([]);
+  const [myRating, setMyRating] = useState(0);
+  const [myComment, setMyComment] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   const isOrganizer = Boolean(profile && event && profile.id === event.organizer_id);
 
@@ -86,6 +96,26 @@ export default function EventDetailScreen() {
     }
   }, [id]);
 
+  const loadReviews = useCallback(async () => {
+    if (!id) return;
+    const { data, error } = await supabase
+      .from("event_reviews")
+      .select("*, participant:profiles(id, first_name, last_name, avatar_url)")
+      .eq("event_id", id)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      const rows = data as unknown as ReviewWithParticipant[];
+      setReviews(rows);
+
+      const mine = session?.user.id ? rows.find((r) => r.participant_id === session.user.id) : undefined;
+      if (mine) {
+        setMyRating(mine.rating);
+        setMyComment(mine.comment ?? "");
+      }
+    }
+  }, [id, session?.user.id]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -93,6 +123,7 @@ export default function EventDetailScreen() {
       setIsLoading(true);
       await loadEvent();
       await loadShoppingList();
+      await loadReviews();
       if (isMounted) setIsLoading(false);
     }
 
@@ -101,11 +132,43 @@ export default function EventDetailScreen() {
     return () => {
       isMounted = false;
     };
-  }, [loadEvent, loadShoppingList]);
+  }, [loadEvent, loadShoppingList, loadReviews]);
 
   const handleRefreshAll = useCallback(async () => {
-    await Promise.all([loadEvent(), loadShoppingList()]);
-  }, [loadEvent, loadShoppingList]);
+    await Promise.all([loadEvent(), loadShoppingList(), loadReviews()]);
+  }, [loadEvent, loadShoppingList, loadReviews]);
+
+  const handleSubmitReview = useCallback(async () => {
+    if (!session?.user.id || !id || myRating < 1) {
+      setReviewError("Choisis une note avant d'envoyer ton avis.");
+      return;
+    }
+
+    setReviewError(null);
+    setIsSubmittingReview(true);
+    try {
+      const { error } = await supabase
+        .from("event_reviews")
+        .upsert(
+          {
+            event_id: id,
+            participant_id: session.user.id,
+            rating: myRating,
+            comment: myComment.trim() || null,
+          },
+          { onConflict: "event_id,participant_id" }
+        );
+
+      if (error) {
+        setReviewError("Impossible d'envoyer ton avis. Réessaie.");
+        return;
+      }
+
+      await loadReviews();
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  }, [session?.user.id, id, myRating, myComment, loadReviews]);
 
   if (isLoading) {
     return (
@@ -139,6 +202,10 @@ export default function EventDetailScreen() {
     ? confirmedRegistrations.find((registration) => registration.participant_id === session.user.id)
     : undefined;
   const isRegistered = Boolean(myRegistration);
+  const isPastEvent = new Date() >= new Date(event.end_at ?? event.start_at);
+  const canReview = isPastEvent && isRegistered;
+  const averageRating =
+    reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : null;
 
   const handleOpenMaps = () => {
     const query = encodeURIComponent(event.meeting_point);
@@ -443,6 +510,72 @@ export default function EventDetailScreen() {
             </View>
           </View>
         ) : null}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Avis</Text>
+
+          {averageRating !== null ? (
+            <Text style={styles.reviewsAverage}>
+              {"⭐".repeat(Math.round(averageRating))} {averageRating.toFixed(1)}/5 ({reviews.length} avis)
+            </Text>
+          ) : (
+            <Text style={styles.helperText}>Aucun avis pour l'instant.</Text>
+          )}
+
+          {reviews.map((review) => {
+            const reviewerName = review.participant
+              ? `${review.participant.first_name} ${review.participant.last_name}`.trim()
+              : "Participante";
+            return (
+              <View key={review.id} style={styles.reviewRow}>
+                <Avatar url={review.participant?.avatar_url} name={reviewerName} size={32} />
+                <View style={styles.reviewBody}>
+                  <View style={styles.reviewHeaderRow}>
+                    <Text style={styles.reviewerName}>{reviewerName}</Text>
+                    <Text style={styles.reviewStars}>{"⭐".repeat(review.rating)}</Text>
+                  </View>
+                  {review.comment ? <Text style={styles.reviewComment}>{review.comment}</Text> : null}
+                </View>
+              </View>
+            );
+          })}
+
+          {canReview ? (
+            <View style={styles.reviewForm}>
+              <Text style={styles.reviewFormLabel}>
+                {myComment || myRating > 0 ? "Ton avis" : "Laisser un avis"}
+              </Text>
+              <View style={styles.starPicker}>
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <TouchableOpacity key={value} onPress={() => setMyRating(value)} activeOpacity={0.7}>
+                    <Ionicons
+                      name={value <= myRating ? "star" : "star-outline"}
+                      size={28}
+                      color={Colors.warning}
+                      style={styles.starIcon}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TextInput
+                style={styles.reviewInput}
+                placeholder="Un commentaire ? (optionnel)"
+                placeholderTextColor={Colors.textMuted}
+                value={myComment}
+                onChangeText={setMyComment}
+                multiline
+                numberOfLines={3}
+              />
+              {reviewError ? <Text style={styles.error}>{reviewError}</Text> : null}
+              <PrimaryButton
+                label="Envoyer mon avis"
+                onPress={handleSubmitReview}
+                isLoading={isSubmittingReview}
+                style={styles.actionButton}
+              />
+            </View>
+          ) : null}
+        </View>
       </ScrollView>
     </ScreenContainer>
   );
@@ -632,5 +765,69 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: "center",
     justifyContent: "center",
+  },
+  reviewsAverage: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: Colors.text,
+    marginBottom: 10,
+  },
+  reviewRow: {
+    flexDirection: "row",
+    marginBottom: 12,
+  },
+  reviewBody: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  reviewHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  reviewerName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.text,
+  },
+  reviewStars: {
+    fontSize: 12,
+  },
+  reviewComment: {
+    marginTop: 2,
+    fontSize: 14,
+    color: Colors.textMuted,
+  },
+  reviewForm: {
+    marginTop: 8,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  reviewFormLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  starPicker: {
+    flexDirection: "row",
+    marginBottom: 12,
+  },
+  starIcon: {
+    marginRight: 4,
+  },
+  reviewInput: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: Colors.text,
+    minHeight: 70,
+    textAlignVertical: "top",
+    marginBottom: 12,
   },
 });
