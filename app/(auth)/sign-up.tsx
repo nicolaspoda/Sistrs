@@ -8,6 +8,7 @@ import { DatePickerField } from "../../components/DatePickerField";
 import { PasswordField } from "../../components/PasswordField";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { Colors } from "../../constants/colors";
+import { checkIdDocumentAsync } from "../../lib/id-ocr";
 import type { UserRole } from "../../lib/types";
 import { useSignUpDraft } from "./_signup-draft";
 
@@ -67,6 +68,8 @@ export default function SignUpScreen() {
   const [isDevGenderVisible, setIsDevGenderVisible] = useState(false);
   const [role, setRole] = useState<UserRole>(draft.role);
   const [idDocumentUri, setIdDocumentUri] = useState<string | null>(draft.idDocumentUri);
+  const [isCheckingId, setIsCheckingId] = useState(false);
+  const [idCheckWarning, setIdCheckWarning] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>(NO_FIELD_ERRORS);
 
@@ -87,10 +90,14 @@ export default function SignUpScreen() {
       // se fait dans AuthProvider.signUp, une fois le compte créé et donc
       // un auth.uid() disponible : ici on ne garde que l'URI locale.
       setIdDocumentUri(result.assets[0].uri);
+      // Un nouveau document invalide l'avertissement OCR précédent, sans
+      // quoi un second appui sur Continuer sauterait le contrôle pour ce
+      // nouveau fichier.
+      setIdCheckWarning(null);
     }
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     const nextFieldErrors: FieldErrors = {
       firstName: !firstName.trim(),
       lastName: !lastName.trim(),
@@ -116,8 +123,33 @@ export default function SignUpScreen() {
       return;
     }
 
+    // Contrôle de cohérence gratuit (OCR sur l'appareil, voir lib/id-ocr.ts)
+    // — pas une vraie vérification d'identité, juste un avertissement non
+    // bloquant si le nom/prénom ou la date de naissance saisis ne semblent
+    // pas apparaître sur la pièce fournie. Un premier appui affiche
+    // l'avertissement ; un second appui (idCheckWarning déjà affiché)
+    // continue quand même.
+    if (!idCheckWarning && idDocumentUri) {
+      setErrorMessage(null);
+      setIsCheckingId(true);
+      try {
+        const result = await checkIdDocumentAsync(idDocumentUri, firstName.trim(), lastName.trim(), birthDate.trim());
+        if (result.ranOcr && (!result.nameFound || !result.birthDateFound)) {
+          setIdCheckWarning(
+            "On n'a pas retrouvé ton nom et/ou ta date de naissance sur la pièce fournie. Vérifie la photo, ou appuie encore sur Continuer si c'est bien la bonne (ce n'est qu'un contrôle automatique, pas fiable à 100%)."
+          );
+          return;
+        }
+      } catch {
+        // Contrôle best-effort : une erreur ne doit jamais bloquer l'inscription.
+      } finally {
+        setIsCheckingId(false);
+      }
+    }
+
     setFieldErrors(NO_FIELD_ERRORS);
     setErrorMessage(null);
+    setIdCheckWarning(null);
     updateDraft({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
@@ -223,11 +255,13 @@ export default function SignUpScreen() {
         />
 
         {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
+        {idCheckWarning ? <Text style={styles.warning}>{idCheckWarning}</Text> : null}
 
         <PrimaryButton
-          label="Continuer"
+          label={idCheckWarning ? "Continuer quand même" : "Continuer"}
           onPress={handleContinue}
           disabled={!idDocumentUri}
+          isLoading={isCheckingId}
           style={styles.submitButton}
         />
 
@@ -344,6 +378,12 @@ const styles = StyleSheet.create({
   error: {
     color: Colors.danger,
     fontSize: 14,
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  warning: {
+    color: Colors.warning,
+    fontSize: 13,
     marginBottom: 16,
     textAlign: "center",
   },
