@@ -154,16 +154,28 @@ export default function EventDetailScreen() {
     setIsRegistering(true);
 
     try {
-      const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      if (hasHardware) {
-        const result = await LocalAuthentication.authenticateAsync({
-          promptMessage: "Confirme ton identité pour t'inscrire",
-        });
-        if (!result.success) {
-          setActionError("Vérification Face ID annulée ou échouée.");
-          setIsRegistering(false);
-          return;
-        }
+      // Face ID est obligatoire pour s'inscrire à un événement, sans repli
+      // sur le code/l'empreinte de l'appareil (voir CLAUDE.md).
+      const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
+      const hasFaceId = supportedTypes.includes(
+        LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION
+      );
+
+      if (!hasFaceId) {
+        setActionError("Face ID n'est pas disponible sur cet appareil, impossible de continuer.");
+        setIsRegistering(false);
+        return;
+      }
+
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Confirme ton identité avec Face ID pour t'inscrire",
+        cancelLabel: "Annuler",
+        disableDeviceFallback: true,
+      });
+      if (!result.success) {
+        setActionError("La vérification Face ID a échoué ou a été annulée. Impossible de t'inscrire.");
+        setIsRegistering(false);
+        return;
       }
 
       const { error } = await supabase.from("event_registrations").insert({

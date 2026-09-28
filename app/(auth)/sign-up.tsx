@@ -4,6 +4,8 @@ import { useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { AuthTextField } from "../../components/AuthTextField";
+import { DatePickerField } from "../../components/DatePickerField";
+import { PasswordField } from "../../components/PasswordField";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { Colors } from "../../constants/colors";
 import type { UserRole } from "../../lib/types";
@@ -14,6 +16,14 @@ const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: "organizer", label: "Organisatrice" },
 ];
 
+// Genre : jamais demandé en usage normal (voir CLAUDE.md — filtre "femmes
+// uniquement"). En dev/staging uniquement, un lien discret révèle un
+// sélecteur pour permettre au développeur de tester avec un autre genre.
+const DEV_GENDER_OPTIONS = ["femme", "homme", "autre"];
+const isProduction = process.env.EXPO_PUBLIC_ENV === "production";
+
+const MIN_PASSWORD_LENGTH = 8;
+
 export default function SignUpScreen() {
   const { draft, updateDraft } = useSignUpDraft();
 
@@ -22,7 +32,9 @@ export default function SignUpScreen() {
   const [birthDate, setBirthDate] = useState(draft.birthDate);
   const [email, setEmail] = useState(draft.email);
   const [password, setPassword] = useState(draft.password);
-  const [gender, setGender] = useState(draft.gender);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [gender, setGender] = useState(draft.gender || "femme");
+  const [isDevGenderVisible, setIsDevGenderVisible] = useState(false);
   const [role, setRole] = useState<UserRole>(draft.role);
   const [idDocumentUri, setIdDocumentUri] = useState<string | null>(draft.idDocumentUri);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -51,8 +63,16 @@ export default function SignUpScreen() {
       setErrorMessage("Merci de remplir tous les champs obligatoires.");
       return;
     }
-    if (password.length < 6) {
-      setErrorMessage("Le mot de passe doit contenir au moins 6 caractères.");
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setErrorMessage(`Le mot de passe doit contenir au moins ${MIN_PASSWORD_LENGTH} caractères.`);
+      return;
+    }
+    if (password !== confirmPassword) {
+      setErrorMessage("Les deux mots de passe ne correspondent pas.");
+      return;
+    }
+    if (!idDocumentUri) {
+      setErrorMessage("La pièce d'identité est obligatoire pour créer un compte.");
       return;
     }
 
@@ -63,7 +83,9 @@ export default function SignUpScreen() {
       birthDate: birthDate.trim(),
       email: email.trim(),
       password,
-      gender: gender.trim(),
+      // Genre toujours "femme" en production, quoi qu'il arrive — le
+      // sélecteur développeur n'existe même pas dans ce cas (voir plus bas).
+      gender: isProduction ? "femme" : gender.trim() || "femme",
       role,
       idDocumentUri,
     });
@@ -74,7 +96,8 @@ export default function SignUpScreen() {
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Créer un compte</Text>
-        <Text style={styles.subtitle}>Étape 1 sur 2 — tes informations</Text>
+        <Text style={styles.overline}>ÉTAPE 1 SUR 2</Text>
+        <Text style={styles.stepTitle}>Tes informations</Text>
 
         <View style={styles.row}>
           <AuthTextField
@@ -95,13 +118,7 @@ export default function SignUpScreen() {
           />
         </View>
 
-        <AuthTextField
-          label="Date de naissance (JJ/MM/AAAA)"
-          placeholder="14/03/1998"
-          value={birthDate}
-          onChangeText={setBirthDate}
-          keyboardType="numbers-and-punctuation"
-        />
+        <DatePickerField label="Date de naissance" value={birthDate} onChange={setBirthDate} />
 
         <AuthTextField
           label="Email"
@@ -112,21 +129,20 @@ export default function SignUpScreen() {
           onChangeText={setEmail}
         />
 
-        <AuthTextField
+        <PasswordField
           label="Mot de passe"
-          placeholder="6 caractères minimum"
-          secureTextEntry
+          placeholder={`${MIN_PASSWORD_LENGTH} caractères minimum`}
           autoComplete="password-new"
           value={password}
           onChangeText={setPassword}
         />
 
-        <AuthTextField
-          label="Genre"
-          placeholder="femme"
-          autoCapitalize="none"
-          value={gender}
-          onChangeText={setGender}
+        <PasswordField
+          label="Confirmer le mot de passe"
+          placeholder="Retape ton mot de passe"
+          autoComplete="password-new"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
         />
 
         <Text style={styles.sectionLabel}>Tu es plutôt…</Text>
@@ -148,7 +164,7 @@ export default function SignUpScreen() {
           })}
         </View>
 
-        <Text style={styles.sectionLabel}>Pièce d'identité (optionnel)</Text>
+        <Text style={styles.sectionLabel}>Pièce d'identité (obligatoire)</Text>
         <PrimaryButton
           label={idDocumentUri ? "Pièce d'identité ajoutée ✓" : "Ajouter une pièce d'identité"}
           variant="outline"
@@ -158,7 +174,41 @@ export default function SignUpScreen() {
 
         {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
 
-        <PrimaryButton label="Continuer" onPress={handleContinue} style={styles.submitButton} />
+        <PrimaryButton
+          label="Continuer"
+          onPress={handleContinue}
+          disabled={!idDocumentUri}
+          style={styles.submitButton}
+        />
+
+        {!isProduction ? (
+          <View style={styles.devSection}>
+            <TouchableOpacity onPress={() => setIsDevGenderVisible((prev) => !prev)}>
+              <Text style={styles.devLink}>Mode développeur : changer le genre pour un test</Text>
+            </TouchableOpacity>
+            {isDevGenderVisible ? (
+              <View style={styles.devGenderRow}>
+                {DEV_GENDER_OPTIONS.map((option) => {
+                  const isSelected = gender === option;
+                  return (
+                    <TouchableOpacity
+                      key={option}
+                      style={[styles.devGenderChip, isSelected && styles.devGenderChipSelected]}
+                      onPress={() => setGender(option)}
+                      activeOpacity={0.85}
+                    >
+                      <Text
+                        style={[styles.devGenderChipLabel, isSelected && styles.devGenderChipLabelSelected]}
+                      >
+                        {option}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Déjà un compte ?</Text>
@@ -185,11 +235,20 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: "800",
     color: Colors.primary,
+    marginBottom: 16,
+  },
+  overline: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: Colors.textMuted,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
     marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 14,
-    color: Colors.textMuted,
+  stepTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: Colors.text,
     marginBottom: 24,
   },
   row: {
@@ -243,6 +302,40 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: 4,
+  },
+  devSection: {
+    marginTop: 24,
+    alignItems: "center",
+  },
+  devLink: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    textDecorationLine: "underline",
+  },
+  devGenderRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 12,
+  },
+  devGenderChip: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  devGenderChipSelected: {
+    backgroundColor: Colors.primaryLight,
+    borderColor: Colors.primary,
+  },
+  devGenderChipLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: Colors.textMuted,
+  },
+  devGenderChipLabelSelected: {
+    color: Colors.primaryDark,
   },
   footer: {
     flexDirection: "row",

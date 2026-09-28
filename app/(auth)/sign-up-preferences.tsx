@@ -60,26 +60,43 @@ export default function SignUpPreferencesScreen() {
 
   const handleEnableFaceId = async () => {
     setErrorMessage(null);
-    const hasHardware = await LocalAuthentication.hasHardwareAsync();
-    if (!hasHardware) {
-      setErrorMessage("Face ID / Touch ID n'est pas disponible sur cet appareil.");
+
+    // Face ID est obligatoire pour terminer l'inscription, sans aucun repli
+    // sur le code/l'empreinte de l'appareil (voir CLAUDE.md — le Face ID
+    // natif confirme "même personne que celle qui a configuré ce téléphone",
+    // pas l'identité réelle, mais on veut au moins garantir que c'est bien
+    // de la reconnaissance faciale et rien d'autre).
+    const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
+    const hasFaceId = supportedTypes.includes(
+      LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION
+    );
+
+    if (!hasFaceId) {
+      setErrorMessage("Face ID n'est pas disponible sur cet appareil, impossible de continuer.");
       return;
     }
 
     const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: "Confirme ton identité pour activer Face ID",
+      promptMessage: "Confirme ton identité avec Face ID pour créer ton compte",
+      cancelLabel: "Annuler",
+      disableDeviceFallback: true,
     });
 
     if (result.success) {
       setFaceIdEnabled(true);
     } else {
-      setErrorMessage("Activation de Face ID annulée ou échouée.");
+      setFaceIdEnabled(false);
+      setErrorMessage("La vérification Face ID a échoué ou a été annulée. Réessaie pour continuer.");
     }
   };
 
   const handleCreateAccount = async () => {
     if (!ageBracket) {
       setErrorMessage("Choisis ta tranche d'âge.");
+      return;
+    }
+    if (!faceIdEnabled) {
+      setErrorMessage("La vérification Face ID est obligatoire pour créer ton compte.");
       return;
     }
 
@@ -130,7 +147,8 @@ export default function SignUpPreferencesScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Créer un compte</Text>
-      <Text style={styles.subtitle}>Étape 2 sur 2 — tes préférences</Text>
+      <Text style={styles.overline}>ÉTAPE 2 SUR 2</Text>
+      <Text style={styles.stepTitle}>Tes préférences</Text>
 
       <Text style={styles.sectionLabel}>Tranche d'âge</Text>
       <View style={styles.segmentRow}>
@@ -182,7 +200,7 @@ export default function SignUpPreferencesScreen() {
         </View>
       )}
 
-      <Text style={styles.sectionLabel}>Sécurité</Text>
+      <Text style={styles.sectionLabel}>Sécurité (Face ID obligatoire)</Text>
       <PrimaryButton
         label={faceIdEnabled ? "Face ID activé ✓" : "Activer Face ID"}
         variant="outline"
@@ -196,6 +214,7 @@ export default function SignUpPreferencesScreen() {
         label="Créer mon compte"
         onPress={handleCreateAccount}
         isLoading={isSubmitting}
+        disabled={!faceIdEnabled}
         style={styles.submitButton}
       />
     </ScrollView>
@@ -215,9 +234,18 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 14,
+  overline: {
+    fontSize: 11,
+    fontWeight: "700",
     color: Colors.textMuted,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  stepTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: Colors.text,
     marginBottom: 24,
   },
   sectionLabel: {
