@@ -267,10 +267,11 @@ create policy "event_shopping_list_delete" on event_shopping_list_items
   );
 
 create policy "event_registrations_select" on event_registrations
-  for select to authenticated using (
-    auth.uid() = participant_id
-    or exists (select 1 from events e where e.id = event_id and e.organizer_id = auth.uid())
-  );
+  -- Lecture ouverte comme le reste du schéma (events, channels, ...) : savoir
+  -- qui participe à un événement public n'est pas une donnée privée, et ça
+  -- permet d'afficher les places restantes / avatars des inscrites à toute
+  -- utilisatrice, pas seulement à l'inscrite elle-même ou l'organisatrice.
+  for select to authenticated using (true);
 create policy "event_registrations_insert_own" on event_registrations
   for insert to authenticated with check (auth.uid() = participant_id);
 create policy "event_registrations_update" on event_registrations
