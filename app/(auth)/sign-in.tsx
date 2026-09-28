@@ -3,6 +3,7 @@ import { useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { AuthTextField } from "../../components/AuthTextField";
+import { PasswordField } from "../../components/PasswordField";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { Colors } from "../../constants/colors";
 import { useAuth } from "../../lib/auth/AuthProvider";
@@ -57,10 +58,9 @@ export default function SignInScreen() {
           value={email}
           onChangeText={setEmail}
         />
-        <AuthTextField
+        <PasswordField
           label="Mot de passe"
           placeholder="••••••••"
-          secureTextEntry
           autoComplete="password"
           value={password}
           onChangeText={setPassword}
