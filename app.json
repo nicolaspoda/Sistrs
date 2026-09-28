@@ -8,7 +8,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Sistrs utilise Face ID pour confirmer ton identité à l'inscription et lors de l'inscription à un événement.",
+        "NSPhotoLibraryUsageDescription": "Sistrs a besoin d'accéder à tes photos pour choisir ton avatar ou ta pièce d'identité."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +29,9 @@
     "plugins": [
       "expo-router",
       "expo-status-bar",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-local-authentication",
+      "expo-image-picker"
     ]
   }
 }
