@@ -15,6 +15,7 @@ import {
 } from "react-native";
 
 import { Avatar } from "../../components/Avatar";
+import { EventLocationMap } from "../../components/EventLocationMap";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { BackButton } from "../../components/BackButton";
 import { ScreenContainer } from "../../components/ScreenContainer";
@@ -394,6 +395,13 @@ export default function EventDetailScreen() {
             <Ionicons name="location-outline" size={18} color={Colors.textMuted} />
             <Text style={styles.infoText}>{event.meeting_point}</Text>
           </View>
+          {event.meeting_lat != null && event.meeting_lng != null ? (
+            <EventLocationMap
+              latitude={event.meeting_lat}
+              longitude={event.meeting_lng}
+              title={event.meeting_point}
+            />
+          ) : null}
           <PrimaryButton
             label="Ouvrir dans Plans"
             variant="outline"

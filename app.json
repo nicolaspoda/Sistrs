@@ -32,7 +32,11 @@
       "@react-native-community/datetimepicker",
       "expo-local-authentication",
       "expo-image-picker",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "@rnmapbox/maps",
+        {}
+      ]
     ]
   }
 }
