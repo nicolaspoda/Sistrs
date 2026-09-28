@@ -100,11 +100,7 @@ export function DatePickerField({ label, value, onChange, placeholder, hasError 
           <View style={styles.modalCard}>
             <DateTimePicker
               mode="date"
-              // "inline" est buggé sur iOS : la navigation entre mois se
-              // réinitialise de façon aléatoire (bug connu de la librairie).
-              // "spinner" (une roue par jour/mois/année) est moins joli mais
-              // fiable — pas de calendrier grille sur iOS pour l'instant.
-              display={Platform.OS === "ios" ? "spinner" : "calendar"}
+              display={Platform.OS === "ios" ? "inline" : "calendar"}
               themeVariant="light"
               accentColor={Colors.primary}
               maximumDate={new Date()}
