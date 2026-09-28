@@ -5,9 +5,69 @@
 > entier avant de reprendre le travail, surtout après un changement de
 > compte/session Claude Code.
 
-Dernière mise à jour : 2026-09-28
+Dernière mise à jour : 2026-09-28 (session app fonctionnelle complète)
 
 ## Fait
+
+- **Application fonctionnelle de bout en bout** (auth + RLS + toutes les
+  features des 5 onglets), construite en une session avec plusieurs
+  sous-agents en parallèle sur des périmètres de fichiers disjoints (pas de
+  conflit git à la fin) :
+  - **Base de données** : migration `supabase/migrations/20260928010000_rls_and_triggers.sql`
+    — RLS activée et policy par table (lecture globale aux authentifiées la
+    plupart du temps, écriture restreinte au propriétaire de la ligne/du
+    canal/de l'événement), + triggers : `updated_at` auto, auto-création du
+    canal d'une organisatrice à la prise du rôle `organizer`, notifications
+    in-app auto sur demande d'amie / amie acceptée / nouveau message /
+    inscription confirmée (+ incrément `activity_count`) / nouveau sondage.
+    **Correctif appliqué après coup** : la policy de lecture de
+    `event_registrations` a été rendue ouverte à toute utilisatrice
+    authentifiée (comme le reste du schéma), sinon le nombre de places
+    restantes et les avatars des inscrites ne s'affichaient que pour
+    l'inscrite elle-même ou l'organisatrice.
+  - **Fondations** : `lib/types.ts` (types miroir de tout `supabase/schema.sql`),
+    `lib/query-client.ts` (TanStack Query), `lib/auth/AuthProvider.tsx`
+    (session + profil + `signUp`/`signIn`/`signOut`/`refreshProfile`, filtre
+    "femmes uniquement" forcé côté `signUp` selon `EXPO_PUBLIC_ENV`), garde de
+    navigation dans `app/_layout.tsx` (redirige vers `(auth)` si pas de
+    session/profil, vers `(tabs)` sinon).
+  - **Composants partagés** : `components/Avatar.tsx`, `EmptyState.tsx`,
+    `ScreenContainer.tsx`, `PrimaryButton.tsx`, `AuthTextField.tsx` — réutilisés
+    par tous les écrans, palette étendue dans `constants/colors.ts`.
+  - **Authentification** : `app/(auth)/sign-in.tsx`, `sign-up.tsx` (infos +
+    upload pièce d'identité local via `expo-image-picker`, pas encore uploadé
+    vers Supabase Storage — TODO), `sign-up-preferences.tsx` (tranche d'âge,
+    préférences/spécialités par catégories, activation Face ID via
+    `expo-local-authentication`), état d'inscription partagé via
+    `app/(auth)/_signup-draft.tsx`.
+  - **Événements** (tab Accueil) : fil des événements à venir
+    (`app/(tabs)/index.tsx`), détail + inscription avec confirmation Face ID
+    + annulation + liste de courses pour l'organisatrice (`app/event/[id].tsx`),
+    création d'événement pour les organisatrices (`app/event/create.tsx`).
+  - **Amis** : demandes reçues / liste d'amies / recherche et ajout
+    (`app/(tabs)/friends.tsx`).
+  - **Canaux** : liste suivis/découvrir (`app/(tabs)/channels.tsx`), détail
+    avec fil posts + sondages (vote, changement de vote), likes, création de
+    post/sondage pour l'organisatrice (`app/channel/[id].tsx`).
+  - **Messagerie** : liste des conversations (`app/(tabs)/messages.tsx`), chat
+    en temps réel via Supabase Realtime avec résolution/création automatique
+    de la conversation à partir d'un `profile_id` d'amie (`app/conversation/[id].tsx`).
+  - **Profil** : vue/édition du profil connecté, déconnexion, badge de statut
+    (`app/(tabs)/profile.tsx`), vue lecture seule du profil d'une autre
+    personne (`app/profile/[id].tsx`), liste de notifications in-app
+    (`app/notifications.tsx`).
+  - **Décision carte** : pas de SDK de carte embarqué (Mapbox / Google Maps)
+    pour l'instant — le lieu d'un événement s'ouvre via un lien natif
+    ("Ouvrir dans Plans", `Linking.openURL`) plutôt qu'une carte interactive
+    intégrée. Choix pragmatique pour rester testable directement dans Expo Go
+    sans build natif custom ni clé API Google Maps. Voir CLAUDE.md — le choix
+    Mapbox vs Google Maps reste ouvert si une carte interactive intégrée est
+    voulue plus tard (nécessitera un dev client / `expo prebuild`).
+  - **Dépendances ajoutées** à `package.json` (pas encore installées par
+    l'utilisateur) : `@tanstack/react-query`, `expo-local-authentication`,
+    `expo-image-picker`.
+
+## Fait (session précédente)
 
 - **Squelette du projet Expo mis en place** (à la racine du repo, pas de
   sous-dossier) :
@@ -43,7 +103,7 @@ Dernière mise à jour : 2026-09-28
   publiable de l'instance locale — à régénérer via `supabase status` si
   l'instance est recréée.
 
-## Fait (précédent)
+## Fait (sessions précédentes)
 
 - **Nom du produit** : Sistrs (nom de code "Rosie" utilisé au tout début,
   abandonné).
@@ -90,17 +150,38 @@ Dernière mise à jour : 2026-09-28
 
 ## En cours / à faire ensuite
 
-1. Terminer les écrans manquants de la maquette Figma (liste ci-dessus) —
-   soit en reprenant Figma si le quota est repassé, soit via un prototype
-   cliquable alternatif (option évoquée mais pas retenue formellement).
-2. Décider du SDK de carte (Mapbox vs Google Maps) — pas encore tranché.
-3. Écrire les policies RLS Supabase une fois les écrans/flows principaux
-   clairs (RLS pas encore activé — le schéma n'en contient volontairement
-   pas pour l'instant, pour rester lisible).
-4. Brancher l'auth Supabase (écrans d'inscription/connexion Figma déjà
-   faits) sur le client `lib/supabase.ts` maintenant en place.
-5. Construire le vrai contenu des 5 écrans d'onglets (actuellement de
-   simples placeholders).
+1. **Avant de tester** : lancer `npx expo install @tanstack/react-query expo-local-authentication expo-image-picker`
+   depuis la racine (utilise `expo install` plutôt que `npm install` pour que
+   les versions soient bien compatibles avec Expo SDK 57), puis
+   `supabase start` (Docker Desktop lancé) pour appliquer les migrations
+   (schéma + RLS + triggers), puis `npx expo start`.
+2. **Uploads réels** : l'avatar et la pièce d'identité sont actuellement
+   stockés en URI locale uniquement (pas de vrai upload vers Supabase
+   Storage) — à brancher (créer un bucket `avatars`/`id-documents`, policies
+   Storage, upload dans `signUp`/`sign-up.tsx`/`app/(tabs)/profile.tsx`).
+3. **Notifications push** : seules des notifications *in-app* existent
+   (table `notifications`, écran `app/notifications.tsx`, alimentée par des
+   triggers SQL). Aucune notification push réelle (`expo-notifications`,
+   tokens, Edge Function d'envoi) n'est branchée — à faire si besoin.
+4. **Carte interactive** : décision actuelle = pas de SDK carte, juste un
+   lien "Ouvrir dans Plans" (voir plus haut). Si une carte intégrée est
+   voulue, il faudra trancher Mapbox vs Google Maps ET passer par un dev
+   client (`expo prebuild` / `expo run:ios`), ce qui casse le flux "juste
+   `expo start` + Expo Go" actuel — à peser avant de s'y engager.
+5. **Tests fonctionnels manuels** : à faire par l'utilisateur sur son Mac
+   (simulateur iOS / Expo Go) — flux complet à valider : inscription
+   (participante ET organisatrice) → création de canal auto → création d'un
+   événement (organisatrice) → découverte + inscription avec Face ID
+   (participante) → demande d'amie → message → post/sondage dans un canal.
+6. **Écrans Figma manquants** : toujours non repris (accueil/fil, détail
+   événement, création événement, canal individuel, messagerie, profils) —
+   l'app a été construite directement en code avec un design simple dans la
+   palette de marque plutôt qu'en repartant des maquettes, comme demandé.
+7. **RLS à revisiter** : les policies actuelles privilégient la simplicité
+   (lecture large aux authentifiées) plutôt qu'une confidentialité stricte
+   (ex. n'importe quelle utilisatrice connectée peut lister tous les profils,
+   voir qui est inscrite à un événement, qui a liké/voté). À resserrer si le
+   produit évolue vers plus de confidentialité.
 
 ## Décisions à ne pas reproposer (déjà tranchées)
 

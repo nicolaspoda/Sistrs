@@ -17,7 +17,11 @@ importante).
 - **Frontend** : React Native + Expo (Expo Router pour la navigation par fichiers)
 - **Backend** : Supabase (Postgres + Auth + Storage + Realtime + Edge Functions), extension PostGIS pour la géoloc/carte
 - **Data fetching / cache** : TanStack Query
-- **Cartes** : Mapbox ou Google Maps SDK (react-native-maps) — à trancher
+- **Cartes** : pas de SDK carte embarqué pour l'instant — le lieu d'un
+  événement s'ouvre via un lien natif ("Ouvrir dans Plans", `Linking`),
+  pour rester testable dans Expo Go sans dev client custom. Mapbox vs
+  Google Maps (`react-native-maps`) reste à trancher si une carte
+  interactive intégrée est voulue plus tard (nécessite `expo prebuild`).
 - **Notifications push** : Expo Notifications
 - **Biométrie** : `expo-local-authentication` (Face ID / Touch ID natif)
 
