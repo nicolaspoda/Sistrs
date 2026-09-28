@@ -12,6 +12,7 @@ type DatePickerFieldProps = {
   /** Reçoit la date choisie au format ISO YYYY-MM-DD. */
   onChange: (isoDate: string) => void;
   placeholder?: string;
+  hasError?: boolean;
 };
 
 function isoToDisplay(iso: string): string {
@@ -36,7 +37,7 @@ function dateToIso(date: Date): string {
 // Sélecteur de date de naissance : ouvre un calendrier natif dans une modale
 // plutôt que de laisser saisir une date libre au clavier (source d'erreurs
 // de format constatée lors des tests utilisateurs).
-export function DatePickerField({ label, value, onChange, placeholder }: DatePickerFieldProps) {
+export function DatePickerField({ label, value, onChange, placeholder, hasError = false }: DatePickerFieldProps) {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [pendingDate, setPendingDate] = useState<Date>(() => isoToDate(value));
 
@@ -62,10 +63,20 @@ export function DatePickerField({ label, value, onChange, placeholder }: DatePic
     setIsModalVisible(false);
   };
 
+  const handleCancel = () => {
+    // Ferme la modale sans appeler onChange : la valeur existante n'est pas
+    // modifiée (test utilisateur — impossible de sortir sans valider avant).
+    setIsModalVisible(false);
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
-      <TouchableOpacity style={styles.input} onPress={openModal} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={[styles.input, hasError && styles.inputError]}
+        onPress={openModal}
+        activeOpacity={0.7}
+      >
         <Text style={value ? styles.value : styles.placeholder}>
           {value ? isoToDisplay(value) : placeholder ?? "Sélectionner ta date de naissance"}
         </Text>
@@ -77,12 +88,26 @@ export function DatePickerField({ label, value, onChange, placeholder }: DatePic
             <DateTimePicker
               mode="date"
               display={Platform.OS === "ios" ? "inline" : "calendar"}
+              themeVariant="light"
+              accentColor={Colors.primary}
               maximumDate={new Date()}
               value={pendingDate}
               onChange={handleChange}
             />
             {Platform.OS === "ios" ? (
-              <PrimaryButton label="Valider" onPress={handleValidate} style={styles.validateButton} />
+              <View style={styles.actionsRow}>
+                <PrimaryButton
+                  label="Annuler"
+                  variant="outline"
+                  onPress={handleCancel}
+                  style={styles.actionButton}
+                />
+                <PrimaryButton
+                  label="Valider"
+                  onPress={handleValidate}
+                  style={styles.actionButton}
+                />
+              </View>
             ) : null}
           </View>
         </View>
@@ -111,6 +136,10 @@ const styles = StyleSheet.create({
     minHeight: 52,
     justifyContent: "center",
   },
+  inputError: {
+    borderColor: Colors.danger,
+    borderWidth: 1.5,
+  },
   value: {
     fontSize: 16,
     color: Colors.text,
@@ -131,7 +160,12 @@ const styles = StyleSheet.create({
     padding: 16,
     width: "90%",
   },
-  validateButton: {
+  actionsRow: {
+    flexDirection: "row",
+    gap: 12,
     marginTop: 12,
+  },
+  actionButton: {
+    flex: 1,
   },
 });

@@ -6,18 +6,19 @@ import { Colors } from "../constants/colors";
 
 type PasswordFieldProps = Omit<TextInputProps, "secureTextEntry"> & {
   label: string;
+  hasError?: boolean;
 };
 
 // Champ mot de passe réutilisable avec bouton oeil pour afficher/masquer la
 // saisie. Basé sur le même style que AuthTextField (composants distincts
 // pour que TextInputProps de AuthTextField reste sans le toggle).
-export function PasswordField({ label, style, ...inputProps }: PasswordFieldProps) {
+export function PasswordField({ label, style, hasError = false, ...inputProps }: PasswordFieldProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
-      <View style={styles.inputRow}>
+      <View style={[styles.inputRow, hasError && styles.inputRowError]}>
         <TextInput
           style={[styles.input, style]}
           placeholderTextColor={Colors.textMuted}
@@ -54,6 +55,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     flexDirection: "row",
     alignItems: "center",
+  },
+  inputRowError: {
+    borderColor: Colors.danger,
+    borderWidth: 1.5,
   },
   input: {
     flex: 1,

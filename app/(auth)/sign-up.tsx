@@ -24,6 +24,26 @@ const isProduction = process.env.EXPO_PUBLIC_ENV === "production";
 
 const MIN_PASSWORD_LENGTH = 8;
 
+type FieldErrors = {
+  firstName: boolean;
+  lastName: boolean;
+  birthDate: boolean;
+  email: boolean;
+  password: boolean;
+  confirmPassword: boolean;
+  idDocument: boolean;
+};
+
+const NO_FIELD_ERRORS: FieldErrors = {
+  firstName: false,
+  lastName: false,
+  birthDate: false,
+  email: false,
+  password: false,
+  confirmPassword: false,
+  idDocument: false,
+};
+
 export default function SignUpScreen() {
   const { draft, updateDraft } = useSignUpDraft();
 
@@ -38,6 +58,7 @@ export default function SignUpScreen() {
   const [role, setRole] = useState<UserRole>(draft.role);
   const [idDocumentUri, setIdDocumentUri] = useState<string | null>(draft.idDocumentUri);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>(NO_FIELD_ERRORS);
 
   const handlePickIdDocument = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -59,23 +80,32 @@ export default function SignUpScreen() {
   };
 
   const handleContinue = () => {
-    if (!firstName.trim() || !lastName.trim() || !birthDate.trim() || !email.trim() || !password) {
-      setErrorMessage("Merci de remplir tous les champs obligatoires.");
-      return;
-    }
-    if (password.length < MIN_PASSWORD_LENGTH) {
-      setErrorMessage(`Le mot de passe doit contenir au moins ${MIN_PASSWORD_LENGTH} caractères.`);
-      return;
-    }
-    if (password !== confirmPassword) {
-      setErrorMessage("Les deux mots de passe ne correspondent pas.");
-      return;
-    }
-    if (!idDocumentUri) {
-      setErrorMessage("La pièce d'identité est obligatoire pour créer un compte.");
+    const nextFieldErrors: FieldErrors = {
+      firstName: !firstName.trim(),
+      lastName: !lastName.trim(),
+      birthDate: !birthDate.trim(),
+      email: !email.trim(),
+      password: !password || password.length < MIN_PASSWORD_LENGTH,
+      confirmPassword: !password || password !== confirmPassword,
+      idDocument: !idDocumentUri,
+    };
+    const hasAnyError = Object.values(nextFieldErrors).some(Boolean);
+
+    if (hasAnyError) {
+      setFieldErrors(nextFieldErrors);
+      if (!firstName.trim() || !lastName.trim() || !birthDate.trim() || !email.trim() || !password) {
+        setErrorMessage("Vérifie les champs en rouge ci-dessous.");
+      } else if (password.length < MIN_PASSWORD_LENGTH) {
+        setErrorMessage(`Le mot de passe doit contenir au moins ${MIN_PASSWORD_LENGTH} caractères.`);
+      } else if (password !== confirmPassword) {
+        setErrorMessage("Les deux mots de passe ne correspondent pas.");
+      } else if (!idDocumentUri) {
+        setErrorMessage("La pièce d'identité est obligatoire pour créer un compte.");
+      }
       return;
     }
 
+    setFieldErrors(NO_FIELD_ERRORS);
     setErrorMessage(null);
     updateDraft({
       firstName: firstName.trim(),
@@ -99,26 +129,30 @@ export default function SignUpScreen() {
         <Text style={styles.overline}>ÉTAPE 1 SUR 2</Text>
         <Text style={styles.stepTitle}>Tes informations</Text>
 
-        <View style={styles.row}>
-          <AuthTextField
-            label="Prénom"
-            placeholder="Léa"
-            autoCapitalize="words"
-            value={firstName}
-            onChangeText={setFirstName}
-            style={styles.rowInput}
-          />
-          <AuthTextField
-            label="Nom"
-            placeholder="Martin"
-            autoCapitalize="words"
-            value={lastName}
-            onChangeText={setLastName}
-            style={styles.rowInput}
-          />
-        </View>
+        <AuthTextField
+          label="Prénom"
+          placeholder="Léa"
+          autoCapitalize="words"
+          value={firstName}
+          onChangeText={setFirstName}
+          hasError={fieldErrors.firstName}
+        />
 
-        <DatePickerField label="Date de naissance" value={birthDate} onChange={setBirthDate} />
+        <AuthTextField
+          label="Nom"
+          placeholder="Martin"
+          autoCapitalize="words"
+          value={lastName}
+          onChangeText={setLastName}
+          hasError={fieldErrors.lastName}
+        />
+
+        <DatePickerField
+          label="Date de naissance"
+          value={birthDate}
+          onChange={setBirthDate}
+          hasError={fieldErrors.birthDate}
+        />
 
         <AuthTextField
           label="Email"
@@ -127,6 +161,7 @@ export default function SignUpScreen() {
           autoComplete="email"
           value={email}
           onChangeText={setEmail}
+          hasError={fieldErrors.email}
         />
 
         <PasswordField
@@ -135,6 +170,7 @@ export default function SignUpScreen() {
           autoComplete="password-new"
           value={password}
           onChangeText={setPassword}
+          hasError={fieldErrors.password}
         />
 
         <PasswordField
@@ -143,6 +179,7 @@ export default function SignUpScreen() {
           autoComplete="password-new"
           value={confirmPassword}
           onChangeText={setConfirmPassword}
+          hasError={fieldErrors.confirmPassword}
         />
 
         <Text style={styles.sectionLabel}>Tu es plutôt…</Text>
@@ -169,7 +206,7 @@ export default function SignUpScreen() {
           label={idDocumentUri ? "Pièce d'identité ajoutée ✓" : "Ajouter une pièce d'identité"}
           variant="outline"
           onPress={handlePickIdDocument}
-          style={styles.idButton}
+          style={[styles.idButton, fieldErrors.idDocument && styles.idButtonError]}
         />
 
         {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
@@ -251,13 +288,6 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: 24,
   },
-  row: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  rowInput: {
-    flex: 1,
-  },
   sectionLabel: {
     fontSize: 13,
     fontWeight: "600",
@@ -293,6 +323,10 @@ const styles = StyleSheet.create({
   },
   idButton: {
     marginBottom: 20,
+  },
+  idButtonError: {
+    borderColor: Colors.danger,
+    borderWidth: 1.5,
   },
   error: {
     color: Colors.danger,

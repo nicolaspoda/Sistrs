@@ -26,6 +26,8 @@ export default function SignUpPreferencesScreen() {
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [ageBracketError, setAgeBracketError] = useState(false);
+  const [faceIdError, setFaceIdError] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -60,6 +62,7 @@ export default function SignUpPreferencesScreen() {
 
   const handleEnableFaceId = async () => {
     setErrorMessage(null);
+    setFaceIdError(false);
 
     // Face ID est obligatoire pour terminer l'inscription, sans aucun repli
     // sur le code/l'empreinte de l'appareil (voir CLAUDE.md — le Face ID
@@ -72,6 +75,8 @@ export default function SignUpPreferencesScreen() {
     );
 
     if (!hasFaceId) {
+      setFaceIdEnabled(false);
+      setFaceIdError(true);
       setErrorMessage("Face ID n'est pas disponible sur cet appareil, impossible de continuer.");
       return;
     }
@@ -84,22 +89,54 @@ export default function SignUpPreferencesScreen() {
 
     if (result.success) {
       setFaceIdEnabled(true);
+      setFaceIdError(false);
+      return;
+    }
+
+    setFaceIdEnabled(false);
+    setFaceIdError(true);
+
+    // Diagnostic détaillé : expo-local-authentication renvoie un code
+    // d'échec dans result.error (ex. "user_cancel", "lockout",
+    // "not_enrolled", "authentication_failed", "system_cancel").
+    // Le type LocalAuthenticationError ne liste pas "lockout_permanent" mais
+    // certains appareils/versions le renvoient tout de même : on compare en
+    // string pour couvrir ce cas sans que TypeScript ne le refuse.
+    const failureCode: string | undefined = result.success ? undefined : result.error;
+    console.log("Face ID authentication failed with error code:", failureCode);
+
+    if (failureCode === "lockout" || failureCode === "lockout_permanent") {
+      setErrorMessage(
+        "Face ID est temporairement verrouillé après plusieurs échecs. Verrouille puis déverrouille ton téléphone avec ton code pour le réinitialiser, puis réessaie."
+      );
+    } else if (failureCode === "not_enrolled") {
+      setErrorMessage(
+        "Aucun visage n'est enregistré pour Face ID sur cet appareil. Configure Face ID dans Réglages > Face ID et code, puis réessaie."
+      );
+    } else if (failureCode === "user_cancel") {
+      setErrorMessage("Tu as annulé la vérification. Réessaie quand tu es prête.");
     } else {
-      setFaceIdEnabled(false);
-      setErrorMessage("La vérification Face ID a échoué ou a été annulée. Réessaie pour continuer.");
+      setErrorMessage(`La vérification Face ID a échoué (code: ${failureCode ?? "inconnu"}). Réessaie.`);
     }
   };
 
   const handleCreateAccount = async () => {
-    if (!ageBracket) {
-      setErrorMessage("Choisis ta tranche d'âge.");
-      return;
-    }
-    if (!faceIdEnabled) {
-      setErrorMessage("La vérification Face ID est obligatoire pour créer ton compte.");
+    const missingAgeBracket = !ageBracket;
+    const missingFaceId = !faceIdEnabled;
+
+    if (missingAgeBracket || missingFaceId) {
+      setAgeBracketError(missingAgeBracket);
+      setFaceIdError(missingFaceId);
+      if (missingAgeBracket) {
+        setErrorMessage("Choisis ta tranche d'âge.");
+      } else {
+        setErrorMessage("La vérification Face ID est obligatoire pour créer ton compte.");
+      }
       return;
     }
 
+    setAgeBracketError(false);
+    setFaceIdError(false);
     setErrorMessage(null);
     setIsSubmitting(true);
 
@@ -151,14 +188,17 @@ export default function SignUpPreferencesScreen() {
       <Text style={styles.stepTitle}>Tes préférences</Text>
 
       <Text style={styles.sectionLabel}>Tranche d'âge</Text>
-      <View style={styles.segmentRow}>
+      <View style={[styles.segmentRow, ageBracketError && styles.segmentRowError]}>
         {AGE_BRACKETS.map((bracket) => {
           const isSelected = ageBracket === bracket;
           return (
             <TouchableOpacity
               key={bracket}
               style={[styles.segment, isSelected && styles.segmentSelected]}
-              onPress={() => setAgeBracket(bracket)}
+              onPress={() => {
+                setAgeBracket(bracket);
+                setAgeBracketError(false);
+              }}
               activeOpacity={0.85}
             >
               <Text style={[styles.segmentLabel, isSelected && styles.segmentLabelSelected]}>
@@ -205,7 +245,7 @@ export default function SignUpPreferencesScreen() {
         label={faceIdEnabled ? "Face ID activé ✓" : "Activer Face ID"}
         variant="outline"
         onPress={handleEnableFaceId}
-        style={styles.faceIdButton}
+        style={[styles.faceIdButton, faceIdError && styles.faceIdButtonError]}
       />
 
       {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
@@ -259,6 +299,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     marginBottom: 20,
+    borderWidth: 1.5,
+    borderColor: "transparent",
+    borderRadius: 14,
+    padding: 4,
+  },
+  segmentRowError: {
+    borderColor: Colors.danger,
   },
   segment: {
     flex: 1,
@@ -317,6 +364,10 @@ const styles = StyleSheet.create({
   },
   faceIdButton: {
     marginBottom: 20,
+  },
+  faceIdButtonError: {
+    borderColor: Colors.danger,
+    borderWidth: 1.5,
   },
   error: {
     color: Colors.danger,

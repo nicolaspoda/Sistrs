@@ -4,14 +4,15 @@ import { Colors } from "../constants/colors";
 
 type AuthTextFieldProps = TextInputProps & {
   label: string;
+  hasError?: boolean;
 };
 
-export function AuthTextField({ label, style, ...inputProps }: AuthTextFieldProps) {
+export function AuthTextField({ label, style, hasError = false, ...inputProps }: AuthTextFieldProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
-        style={[styles.input, style]}
+        style={[styles.input, hasError && styles.inputError, style]}
         placeholderTextColor={Colors.textMuted}
         autoCapitalize="none"
         {...inputProps}
@@ -40,5 +41,9 @@ const styles = StyleSheet.create({
     minHeight: 52,
     fontSize: 16,
     color: Colors.text,
+  },
+  inputError: {
+    borderColor: Colors.danger,
+    borderWidth: 1.5,
   },
 });
