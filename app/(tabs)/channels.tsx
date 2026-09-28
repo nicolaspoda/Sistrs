@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -39,38 +39,30 @@ export default function ChannelsScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loadChannels = useCallback(async () => {
+    if (!profile) return;
     setErrorMessage(null);
 
-    const [{ data: channelsData, error: channelsError }, subscriptionsResult] = await Promise.all([
-      supabase
-        .from("channels")
-        .select("id, organizer_id, name, description, organizer:profiles!channels_organizer_id_fkey(*)")
-        .order("name", { ascending: true }),
-      profile
-        ? supabase.from("channel_subscriptions").select("channel_id, last_viewed_at").eq("subscriber_id", profile.id)
-        : Promise.resolve({ data: [], error: null }),
-    ]);
+    // On ne liste ici que les canaux suivis : la découverte de nouveaux
+    // canaux se fait via les publications des organisatrices (fil
+    // d'accueil / profils), pas par une liste "Découvrir" à parcourir.
+    const { data: subscriptionsData, error: subscriptionsError } = await supabase
+      .from("channel_subscriptions")
+      .select("channel_id, last_viewed_at, channel:channels(id, organizer_id, name, description, organizer:profiles!channels_organizer_id_fkey(*))")
+      .eq("subscriber_id", profile.id);
 
-    if (channelsError) {
-      setErrorMessage("Impossible de charger les canaux.");
-      return;
-    }
-
-    const { data: subscriptionsData, error: subscriptionsError } = subscriptionsResult;
     if (subscriptionsError) {
       setErrorMessage("Impossible de charger les canaux.");
       return;
     }
 
     const subscriptions = subscriptionsData ?? [];
-    const subscribedIds = new Set(subscriptions.map((row: any) => row.channel_id as string));
+    const channelIds = subscriptions.map((row: any) => row.channel_id as string);
     const lastViewedByChannel = new Map(
       subscriptions.map((row: any) => [row.channel_id as string, row.last_viewed_at as string | null])
     );
 
     let newContentChannelIds = new Set<string>();
-    if (subscriptions.length > 0) {
-      const channelIds = subscriptions.map((row: any) => row.channel_id as string);
+    if (channelIds.length > 0) {
       const [{ data: postsData }, { data: pollsData }] = await Promise.all([
         supabase.from("channel_posts").select("channel_id, created_at").in("channel_id", channelIds),
         supabase.from("polls").select("channel_id, created_at").in("channel_id", channelIds),
@@ -87,15 +79,17 @@ export default function ChannelsScreen() {
       );
     }
 
-    const rows: ChannelRow[] = (channelsData ?? []).map((row: any) => ({
-      id: row.id,
-      organizer_id: row.organizer_id,
-      name: row.name,
-      description: row.description,
-      organizer: (row.organizer as Profile | null) ?? null,
-      isSubscribed: subscribedIds.has(row.id),
-      hasNewContent: newContentChannelIds.has(row.id),
-    }));
+    const rows: ChannelRow[] = subscriptions
+      .filter((row: any) => row.channel)
+      .map((row: any) => ({
+        id: row.channel.id,
+        organizer_id: row.channel.organizer_id,
+        name: row.channel.name,
+        description: row.channel.description,
+        organizer: (row.channel.organizer as Profile | null) ?? null,
+        isSubscribed: true,
+        hasNewContent: newContentChannelIds.has(row.channel.id),
+      }));
 
     setChannels(rows);
   }, [profile]);
@@ -111,31 +105,23 @@ export default function ChannelsScreen() {
     setIsRefreshing(false);
   }, [loadChannels]);
 
-  const toggleSubscription = useCallback(
+  const unfollowChannel = useCallback(
     async (channel: ChannelRow) => {
       if (!profile || pendingChannelId) return;
 
       setPendingChannelId(channel.id);
-      const wasSubscribed = channel.isSubscribed;
+      // Un canal n'apparaît ici que parce qu'il est suivi : se désabonner
+      // le retire directement de la liste.
+      setChannels((prev) => prev.filter((row) => row.id !== channel.id));
 
-      setChannels((prev) =>
-        prev.map((row) => (row.id === channel.id ? { ...row, isSubscribed: !wasSubscribed } : row))
-      );
-
-      const { error } = wasSubscribed
-        ? await supabase
-            .from("channel_subscriptions")
-            .delete()
-            .eq("channel_id", channel.id)
-            .eq("subscriber_id", profile.id)
-        : await supabase
-            .from("channel_subscriptions")
-            .insert({ channel_id: channel.id, subscriber_id: profile.id });
+      const { error } = await supabase
+        .from("channel_subscriptions")
+        .delete()
+        .eq("channel_id", channel.id)
+        .eq("subscriber_id", profile.id);
 
       if (error) {
-        setChannels((prev) =>
-          prev.map((row) => (row.id === channel.id ? { ...row, isSubscribed: wasSubscribed } : row))
-        );
+        setChannels((prev) => (prev.some((row) => row.id === channel.id) ? prev : [...prev, channel]));
       }
 
       setPendingChannelId(null);
@@ -143,11 +129,7 @@ export default function ChannelsScreen() {
     [profile, pendingChannelId]
   );
 
-  const followedChannels = useMemo(() => channels.filter((c) => c.isSubscribed), [channels]);
-  const discoverChannels = useMemo(
-    () => channels.filter((c) => !c.isSubscribed && c.organizer_id !== profile?.id),
-    [channels, profile?.id]
-  );
+  const followedChannels = channels;
 
   if (isLoading) {
     return (
@@ -169,11 +151,10 @@ export default function ChannelsScreen() {
 
         {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
 
-        <Text style={styles.sectionTitle}>Suivis</Text>
         {followedChannels.length === 0 ? (
           <EmptyState
             title="Aucun canal suivi"
-            subtitle="Découvre des organisatrices ci-dessous et abonne-toi à leur canal."
+            subtitle="Abonne-toi au canal d'une organisatrice depuis une de ses publications ou son profil pour le retrouver ici."
           />
         ) : (
           followedChannels.map((channel) => (
@@ -182,22 +163,7 @@ export default function ChannelsScreen() {
               channel={channel}
               isPending={pendingChannelId === channel.id}
               onPress={() => router.push(`/channel/${channel.id}`)}
-              onToggleSubscription={() => toggleSubscription(channel)}
-            />
-          ))
-        )}
-
-        <Text style={styles.sectionTitle}>Découvrir</Text>
-        {discoverChannels.length === 0 ? (
-          <EmptyState title="Aucun autre canal pour l'instant" />
-        ) : (
-          discoverChannels.map((channel) => (
-            <ChannelListItem
-              key={channel.id}
-              channel={channel}
-              isPending={pendingChannelId === channel.id}
-              onPress={() => router.push(`/channel/${channel.id}`)}
-              onToggleSubscription={() => toggleSubscription(channel)}
+              onToggleSubscription={() => unfollowChannel(channel)}
             />
           ))
         )}
@@ -274,14 +240,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: Colors.text,
     marginBottom: 8,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: Colors.textMuted,
-    textTransform: "uppercase",
-    marginTop: 20,
-    marginBottom: 10,
   },
   errorText: {
     color: Colors.danger,
