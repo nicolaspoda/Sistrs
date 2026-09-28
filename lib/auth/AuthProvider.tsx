@@ -9,6 +9,7 @@ import {
   type PropsWithChildren,
 } from "react";
 
+import { uploadImageAsync } from "../storage";
 import { supabase } from "../supabase";
 import type { Profile } from "../types";
 
@@ -129,6 +130,23 @@ export function AuthProvider({ children }: PropsWithChildren) {
       // formulaire ait transmis.
       const gender = process.env.EXPO_PUBLIC_ENV === "production" ? "femme" : profileData.gender;
 
+      // Le document d'identité choisi à l'étape 1 n'est qu'une URI locale
+      // (`file://…`) tant qu'aucune session n'existe. Une fois le compte
+      // créé ci-dessus, on a un `auth.uid()` valide : on peut donc l'uploader
+      // vers le bucket privé `id-documents` avant de créer le profil.
+      let idDocumentUrl = profileData.id_document_url ?? null;
+      if (idDocumentUrl && idDocumentUrl.startsWith("file")) {
+        try {
+          idDocumentUrl = await uploadImageAsync(idDocumentUrl, "id-documents", userId);
+        } catch (uploadError) {
+          // Ne bloque pas la création du compte pour un problème de
+          // stockage : le document reste simplement absent plutôt que de
+          // faire échouer toute l'inscription.
+          console.error("[signUp] id document upload failed:", uploadError);
+          idDocumentUrl = null;
+        }
+      }
+
       const { error: profileError } = await supabase.from("profiles").insert({
         id: userId,
         first_name: profileData.first_name,
@@ -140,7 +158,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         bio: profileData.bio ?? null,
         avatar_url: profileData.avatar_url ?? null,
         banner_url: profileData.banner_url ?? null,
-        id_document_url: profileData.id_document_url ?? null,
+        id_document_url: idDocumentUrl,
         face_id_enabled: profileData.face_id_enabled ?? false,
       });
 

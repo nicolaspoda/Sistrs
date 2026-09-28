@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
+import { uploadImageAsync } from "../../lib/storage";
 import { useRouter } from "expo-router";
 import {
   ActivityIndicator,
@@ -143,16 +144,19 @@ export default function ProfileScreen() {
 
     const uri = result.assets[0].uri;
 
-    // TODO: upload vers Supabase Storage — pour l'instant on stocke juste
-    // l'URI locale de l'image choisie, sans upload réel.
-    const { error } = await supabase.from("profiles").update({ avatar_url: uri }).eq("id", profile.id);
+    try {
+      const avatarUrl = await uploadImageAsync(uri, "avatars", profile.id);
+      const { error } = await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("id", profile.id);
 
-    if (error) {
-      Alert.alert("Erreur", "Impossible de mettre à jour l'avatar.");
-      return;
+      if (error) {
+        Alert.alert("Erreur", "Impossible de mettre à jour l'avatar.");
+        return;
+      }
+
+      await refreshProfile();
+    } catch {
+      Alert.alert("Erreur", "Impossible d'envoyer la photo. Réessaie.");
     }
-
-    await refreshProfile();
   };
 
   const handleSave = async () => {

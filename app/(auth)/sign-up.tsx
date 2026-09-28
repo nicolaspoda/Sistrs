@@ -83,8 +83,9 @@ export default function SignUpScreen() {
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      // TODO: upload vers Supabase Storage — pour l'instant on garde juste
-      // l'URI locale dans le draft, elle n'est pas persistée côté serveur.
+      // L'upload réel vers Supabase Storage (bucket privé `id-documents`)
+      // se fait dans AuthProvider.signUp, une fois le compte créé et donc
+      // un auth.uid() disponible : ici on ne garde que l'URI locale.
       setIdDocumentUri(result.assets[0].uri);
     }
   };
