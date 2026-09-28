@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "expo-router";
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -94,18 +95,43 @@ export default function NotificationsScreen() {
     loadNotifications();
   }, [loadNotifications]);
 
+  const unreadCount = useMemo(() => notifications.filter((n) => !n.read_at).length, [notifications]);
+
+  const markAsRead = useCallback(async (notificationId: string) => {
+    const readAt = new Date().toISOString();
+    setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, read_at: readAt } : n)));
+
+    const { error } = await supabase
+      .from("notifications")
+      .update({ read_at: readAt })
+      .eq("id", notificationId)
+      .is("read_at", null);
+
+    if (error) {
+      setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, read_at: null } : n)));
+    }
+  }, []);
+
+  const markAllAsRead = useCallback(async () => {
+    if (!profile?.id || unreadCount === 0) return;
+    const readAt = new Date().toISOString();
+    const previous = notifications;
+    setNotifications((prev) => prev.map((n) => (n.read_at ? n : { ...n, read_at: readAt })));
+
+    const { error } = await supabase
+      .from("notifications")
+      .update({ read_at: readAt })
+      .eq("profile_id", profile.id)
+      .is("read_at", null);
+
+    if (error) {
+      setNotifications(previous);
+    }
+  }, [profile?.id, unreadCount, notifications]);
+
   const handlePress = async (notification: Notification) => {
     if (!notification.read_at) {
-      const { error } = await supabase
-        .from("notifications")
-        .update({ read_at: new Date().toISOString() })
-        .eq("id", notification.id);
-
-      if (!error) {
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === notification.id ? { ...n, read_at: new Date().toISOString() } : n))
-        );
-      }
+      await markAsRead(notification.id);
     }
 
     const fromId = notification.payload?.from_profile_id as string | undefined;
@@ -149,7 +175,14 @@ export default function NotificationsScreen() {
   return (
     <ScreenContainer>
       <BackButton style={styles.backButton} />
-      <Text style={styles.headerTitle}>Notifications</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.headerTitle}>Notifications</Text>
+        {unreadCount > 0 ? (
+          <TouchableOpacity onPress={markAllAsRead} activeOpacity={0.75}>
+            <Text style={styles.markAllLabel}>Tout marquer comme lu</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
 
       <FlatList
         data={notifications}
@@ -178,6 +211,18 @@ export default function NotificationsScreen() {
                   })}
                 </Text>
               </View>
+              {isUnread ? (
+                <TouchableOpacity
+                  style={styles.markReadButton}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    markAsRead(item.id);
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="checkmark" size={16} color={Colors.primary} />
+                </TouchableOpacity>
+              ) : null}
             </TouchableOpacity>
           );
         }}
@@ -196,13 +241,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
   headerTitle: {
     fontSize: 22,
     fontWeight: "700",
     color: Colors.text,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
+  },
+  markAllLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: Colors.primary,
   },
   listContent: {
     paddingHorizontal: 20,
@@ -217,6 +272,15 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     padding: 14,
     marginBottom: 10,
+  },
+  markReadButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
   },
   rowUnread: {
     backgroundColor: Colors.primaryLight,
