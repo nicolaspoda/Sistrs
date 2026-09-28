@@ -7,6 +7,7 @@ import { PasswordField } from "../../components/PasswordField";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { Colors } from "../../constants/colors";
 import { useAuth } from "../../lib/auth/AuthProvider";
+import { translateAuthError } from "../../lib/auth-errors";
 
 export default function SignInScreen() {
   const { signIn } = useAuth();
@@ -27,9 +28,7 @@ export default function SignInScreen() {
     try {
       await signIn(email.trim(), password);
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Impossible de se connecter. Réessaie."
-      );
+      setErrorMessage(translateAuthError(error instanceof Error ? error.message : undefined));
     } finally {
       setIsSubmitting(false);
     }

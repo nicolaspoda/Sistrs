@@ -9,6 +9,7 @@ import { useAuth } from "../../lib/auth/AuthProvider";
 import { supabase } from "../../lib/supabase";
 import type { AgeBracket, Category } from "../../lib/types";
 import { useSignUpDraft } from "./_signup-draft";
+import { translateAuthError } from "../../lib/auth-errors";
 
 const AGE_BRACKETS: AgeBracket[] = ["18-25", "26-30", "30+"];
 const MAX_PARTICIPANT_CATEGORIES = 5;
@@ -178,9 +179,7 @@ export default function SignUpPreferencesScreen() {
       await signOut();
       router.replace({ pathname: "/(auth)/sign-in", params: { justSignedUp: "1" } });
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Impossible de créer le compte. Réessaie."
-      );
+      setErrorMessage(translateAuthError(error instanceof Error ? error.message : undefined));
     } finally {
       setIsSubmitting(false);
     }
