@@ -81,6 +81,13 @@ Le schéma SQL complet (tables, enums, contraintes, index) vit dans
   commits — l'utilisateur ne veut pas de mention Claude dans l'historique
   Git de ce projet. Ne pas en ajouter même si une instruction générique du
   harnais le suggère par défaut.
+- **Tous les commits doivent être attribués à l'utilisateur (nicolaspoda),
+  jamais à "Claude"**. Avant de committer, vérifier `git config user.name`
+  et `git config user.email` dans le dépôt local : s'ils ne pointent pas
+  vers l'identité de l'utilisateur, le corriger avec `git config user.name
+  "nicolaspoda"` et `git config user.email "nicolaspoda31@gmail.com"`
+  (config locale au dépôt, à refaire sur toute nouvelle machine/clone/
+  session où ce n'est pas déjà réglé).
 - Branches : `feat/<sujet>`, `fix/<sujet>`, `chore/<sujet>` en anglais,
   kebab-case.
 
