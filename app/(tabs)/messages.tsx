@@ -22,6 +22,7 @@ type ConversationRow = {
   otherProfile: Profile;
   lastMessageContent: string | null;
   lastMessageAt: string | null;
+  hasUnread: boolean;
 };
 
 function formatRelativeTime(isoDate: string | null): string {
@@ -82,6 +83,16 @@ export default function MessagesScreen() {
 
       const rawConversations = conversationsData ?? [];
 
+      const { data: unreadMessagesData } = await supabase
+        .from("messages")
+        .select("conversation_id")
+        .neq("sender_id", profile.id)
+        .is("read_at", null);
+
+      const unreadConversationIds = new Set(
+        (unreadMessagesData ?? []).map((row) => row.conversation_id as string)
+      );
+
       const rows = await Promise.all(
         rawConversations.map(async (conversation) => {
           const otherProfileId =
@@ -109,6 +120,7 @@ export default function MessagesScreen() {
             otherProfile: otherProfileData as Profile,
             lastMessageContent: lastMessageData?.content ?? null,
             lastMessageAt: lastMessageData?.created_at ?? conversation.created_at,
+            hasUnread: unreadConversationIds.has(conversation.id),
           } satisfies ConversationRow;
         })
       );
@@ -166,13 +178,19 @@ export default function MessagesScreen() {
                 activeOpacity={0.7}
                 onPress={() => router.push(`/conversation/${item.id}`)}
               >
-                <Avatar url={item.otherProfile.avatar_url} name={fullName} size={52} />
+                <View style={styles.avatarWrapper}>
+                  <Avatar url={item.otherProfile.avatar_url} name={fullName} size={52} />
+                  {item.hasUnread ? <View style={styles.unreadDot} /> : null}
+                </View>
                 <View style={styles.rowContent}>
                   <View style={styles.rowHeader}>
-                    <Text style={styles.name}>{fullName}</Text>
+                    <Text style={[styles.name, item.hasUnread ? styles.nameUnread : null]}>{fullName}</Text>
                     <Text style={styles.timestamp}>{formatRelativeTime(item.lastMessageAt)}</Text>
                   </View>
-                  <Text style={styles.lastMessage} numberOfLines={1}>
+                  <Text
+                    style={[styles.lastMessage, item.hasUnread ? styles.lastMessageUnread : null]}
+                    numberOfLines={1}
+                  >
                     {item.lastMessageContent ?? "Démarrez la conversation"}
                   </Text>
                 </View>
@@ -202,6 +220,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
+  avatarWrapper: {
+    position: "relative",
+  },
+  unreadDot: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: Colors.danger,
+    borderWidth: 2,
+    borderColor: Colors.background,
+  },
   rowContent: {
     flex: 1,
     marginLeft: 12,
@@ -216,6 +248,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: Colors.text,
   },
+  nameUnread: {
+    fontWeight: "800",
+  },
   timestamp: {
     fontSize: 12,
     color: Colors.textMuted,
@@ -224,5 +259,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 14,
     color: Colors.textMuted,
+  },
+  lastMessageUnread: {
+    color: Colors.text,
+    fontWeight: "600",
   },
 });
