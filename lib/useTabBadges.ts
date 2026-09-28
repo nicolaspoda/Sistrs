@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { subscribeToChannelsRead } from "./app-events";
 import { useAuth } from "./auth/AuthProvider";
 import { supabase } from "./supabase";
 
@@ -93,10 +94,12 @@ export function useTabBadges(): TabBadges {
 
     load();
     const interval = setInterval(load, 30000);
+    const unsubscribe = subscribeToChannelsRead(load);
 
     return () => {
       isMounted = false;
       clearInterval(interval);
+      unsubscribe();
     };
   }, [userId, refreshToken]);
 

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -95,10 +95,12 @@ export default function ChannelsScreen() {
     setChannels(rows);
   }, [profile]);
 
-  useEffect(() => {
-    setIsLoading(true);
-    loadChannels().finally(() => setIsLoading(false));
-  }, [loadChannels]);
+  useFocusEffect(
+    useCallback(() => {
+      setIsLoading(true);
+      loadChannels().finally(() => setIsLoading(false));
+    }, [loadChannels])
+  );
 
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);

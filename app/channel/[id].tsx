@@ -18,6 +18,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { ScreenContainer } from "../../components/ScreenContainer";
 import { Colors } from "../../constants/colors";
+import { notifyChannelsRead } from "../../lib/app-events";
 import { useAuth } from "../../lib/auth/AuthProvider";
 import { supabase } from "../../lib/supabase";
 import type { Profile } from "../../lib/types";
@@ -119,12 +120,14 @@ export default function ChannelDetailScreen() {
 
       if (subscriptionData) {
         // Marque le canal comme vu : efface le point "nouveau contenu"
-        // sur l'onglet Canaux et dans la liste des canaux suivis.
+        // sur l'onglet Canaux et dans la liste des canaux suivis, tout de
+        // suite (pas seulement au prochain sondage de useTabBadges).
         void supabase
           .from("channel_subscriptions")
           .update({ last_viewed_at: new Date().toISOString() })
           .eq("channel_id", id)
-          .eq("subscriber_id", profile.id);
+          .eq("subscriber_id", profile.id)
+          .then(() => notifyChannelsRead());
       }
     }
 
