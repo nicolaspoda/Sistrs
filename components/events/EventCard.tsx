@@ -1,4 +1,4 @@
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { Colors } from "../../constants/colors";
 import type { Category, Event, EventRegistration, Profile } from "../../lib/types";
@@ -55,9 +55,13 @@ export function EventCard({ event, onPress }: EventCardProps) {
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
-      <View style={styles.coverPlaceholder}>
-        <Text style={styles.coverEmoji}>{event.category?.emoji ?? "🎉"}</Text>
-      </View>
+      {event.cover_image_url ? (
+        <Image source={{ uri: event.cover_image_url }} style={styles.cover} />
+      ) : (
+        <View style={styles.coverPlaceholder}>
+          <Text style={styles.coverEmoji}>{event.category?.emoji ?? "🎉"}</Text>
+        </View>
+      )}
 
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={2}>
@@ -92,6 +96,11 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  cover: {
+    height: 140,
+    width: "100%",
+    backgroundColor: Colors.primaryLight,
   },
   coverPlaceholder: {
     height: 90,

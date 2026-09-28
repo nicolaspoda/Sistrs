@@ -89,14 +89,14 @@ end $$;
 -- ----------------------------------------------------------------------------
 insert into profiles (id, first_name, last_name, birth_date, gender, age_bracket, role, bio, face_id_enabled, activity_count, avatar_url)
 values
-  ('a0000000-0000-0000-0000-000000000001', 'Camille', 'Dubois', '1994-03-12', 'femme', '26-30', 'organizer', 'Organisatrice de soirées bar & karaoké sur Paris. Toujours partante pour un cocktail !', true, 40, 'https://picsum.photos/seed/sistrs-camille/400/400'),
-  ('a0000000-0000-0000-0000-000000000002', 'Léa', 'Martin', '1990-07-22', 'femme', '30+', 'organizer', 'Yoga, brunchs et randonnées entre filles — je t''emmène respirer un peu.', true, 60, 'https://picsum.photos/seed/sistrs-lea/400/400'),
-  ('a0000000-0000-0000-0000-000000000003', 'Sarah', 'Bernard', '1997-11-02', 'femme', '18-25', 'organizer', 'Ciné, expos et soirées jeux de société. Team culture & fous rires.', true, 25, 'https://picsum.photos/seed/sistrs-sarah/400/400'),
-  ('b0000000-0000-0000-0000-000000000001', 'Emma', 'Petit', '1996-05-14', 'femme', '26-30', 'participant', 'Toujours dispo pour un afterwork ou un brunch.', true, 32, 'https://picsum.photos/seed/sistrs-emma/400/400'),
-  ('b0000000-0000-0000-0000-000000000002', 'Chloé', 'Robert', '1999-01-30', 'femme', '18-25', 'participant', 'Nouvelle sur l''app, j''ai hâte de rencontrer du monde !', true, 4, 'https://picsum.photos/seed/sistrs-chloe/400/400'),
-  ('b0000000-0000-0000-0000-000000000003', 'Manon', 'Richard', '1993-09-08', 'femme', '26-30', 'participant', 'Karaoké et cocktails, c''est ma vie.', true, 78, 'https://picsum.photos/seed/sistrs-manon/400/400'),
-  ('b0000000-0000-0000-0000-000000000004', 'Julie', 'Durand', '1988-12-19', 'femme', '30+', 'participant', 'Randonnées le week-end, yoga en semaine.', true, 15, 'https://picsum.photos/seed/sistrs-julie/400/400'),
-  ('b0000000-0000-0000-0000-000000000005', 'Inès', 'Leroy', '1995-04-25', 'femme', '26-30', 'participant', 'Ciné et jeux de société, toujours prête pour une bonne partie.', true, 8, 'https://picsum.photos/seed/sistrs-ines/400/400')
+  ('a0000000-0000-0000-0000-000000000001', 'Camille', 'Dubois', '1994-03-12', 'femme', '26-30', 'organizer', 'Organisatrice de soirées bar & karaoké sur Paris. Toujours partante pour un cocktail !', true, 40, 'https://randomuser.me/api/portraits/women/65.jpg'),
+  ('a0000000-0000-0000-0000-000000000002', 'Léa', 'Martin', '1990-07-22', 'femme', '30+', 'organizer', 'Yoga, brunchs et randonnées entre filles — je t''emmène respirer un peu.', true, 60, 'https://randomuser.me/api/portraits/women/48.jpg'),
+  ('a0000000-0000-0000-0000-000000000003', 'Sarah', 'Bernard', '1997-11-02', 'femme', '18-25', 'organizer', 'Ciné, expos et soirées jeux de société. Team culture & fous rires.', true, 25, 'https://randomuser.me/api/portraits/women/21.jpg'),
+  ('b0000000-0000-0000-0000-000000000001', 'Emma', 'Petit', '1996-05-14', 'femme', '26-30', 'participant', 'Toujours dispo pour un afterwork ou un brunch.', true, 32, 'https://randomuser.me/api/portraits/women/33.jpg'),
+  ('b0000000-0000-0000-0000-000000000002', 'Chloé', 'Robert', '1999-01-30', 'femme', '18-25', 'participant', 'Nouvelle sur l''app, j''ai hâte de rencontrer du monde !', true, 4, 'https://randomuser.me/api/portraits/women/12.jpg'),
+  ('b0000000-0000-0000-0000-000000000003', 'Manon', 'Richard', '1993-09-08', 'femme', '26-30', 'participant', 'Karaoké et cocktails, c''est ma vie.', true, 78, 'https://randomuser.me/api/portraits/women/57.jpg'),
+  ('b0000000-0000-0000-0000-000000000004', 'Julie', 'Durand', '1988-12-19', 'femme', '30+', 'participant', 'Randonnées le week-end, yoga en semaine.', true, 15, 'https://randomuser.me/api/portraits/women/74.jpg'),
+  ('b0000000-0000-0000-0000-000000000005', 'Inès', 'Leroy', '1995-04-25', 'femme', '26-30', 'participant', 'Ciné et jeux de société, toujours prête pour une bonne partie.', true, 8, 'https://randomuser.me/api/portraits/women/29.jpg')
 on conflict (id) do nothing;
 
 -- ----------------------------------------------------------------------------
