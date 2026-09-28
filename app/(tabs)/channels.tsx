@@ -119,7 +119,10 @@ export default function ChannelsScreen() {
   );
 
   const followedChannels = useMemo(() => channels.filter((c) => c.isSubscribed), [channels]);
-  const discoverChannels = useMemo(() => channels.filter((c) => !c.isSubscribed), [channels]);
+  const discoverChannels = useMemo(
+    () => channels.filter((c) => !c.isSubscribed && c.organizer_id !== profile?.id),
+    [channels, profile?.id]
+  );
 
   if (isLoading) {
     return (

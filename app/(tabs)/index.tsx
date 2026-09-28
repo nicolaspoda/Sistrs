@@ -23,6 +23,17 @@ export default function AccueilScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const loadUnreadCount = useCallback(async () => {
+    if (!profile?.id) return;
+    const { count } = await supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("profile_id", profile.id)
+      .is("read_at", null);
+    setUnreadCount(count ?? 0);
+  }, [profile?.id]);
 
   const loadEvents = useCallback(async () => {
     setErrorMessage(null);
@@ -60,6 +71,10 @@ export default function AccueilScreen() {
     };
   }, [loadEvents]);
 
+  useEffect(() => {
+    loadUnreadCount();
+  }, [loadUnreadCount]);
+
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     await loadEvents();
@@ -69,17 +84,28 @@ export default function AccueilScreen() {
   return (
     <ScreenContainer>
       <View style={styles.header}>
+        <View style={styles.headerSide}>
+          {profile?.role === "organizer" ? (
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => router.push("/event/create")}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="add" size={22} color={Colors.white} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
         <Text style={styles.headerTitle}>Accueil</Text>
-        {profile?.role === "organizer" ? (
-          <TouchableOpacity
-            style={styles.createButton}
-            onPress={() => router.push("/event/create")}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="add" size={18} color={Colors.white} />
-            <Text style={styles.createButtonLabel}>Créer un événement</Text>
+        <View style={[styles.headerSide, styles.headerSideRight]}>
+          <TouchableOpacity style={styles.bellButton} onPress={() => router.push("/notifications")} activeOpacity={0.85}>
+            <Ionicons name="notifications-outline" size={22} color={Colors.text} />
+            {unreadCount > 0 ? (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
+              </View>
+            ) : null}
           </TouchableOpacity>
-        ) : null}
+        </View>
       </View>
 
       {isLoading ? (
@@ -112,28 +138,51 @@ export default function AccueilScreen() {
 
 const styles = StyleSheet.create({
   header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 8,
   },
+  headerSide: {
+    width: 40,
+    alignItems: "flex-start",
+  },
+  headerSideRight: {
+    alignItems: "flex-end",
+  },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: "800",
     color: Colors.primary,
-    marginBottom: 12,
   },
-  createButton: {
-    flexDirection: "row",
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.primary,
-    borderRadius: 14,
-    paddingVertical: 12,
-    gap: 6,
   },
-  createButtonLabel: {
+  bellButton: {
+    padding: 4,
+  },
+  badge: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    backgroundColor: Colors.danger,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: {
     color: Colors.white,
-    fontSize: 15,
+    fontSize: 10,
     fontWeight: "700",
   },
   list: {
