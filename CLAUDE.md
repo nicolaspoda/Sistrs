@@ -17,13 +17,20 @@ importante).
 - **Frontend** : React Native + Expo (Expo Router pour la navigation par fichiers)
 - **Backend** : Supabase (Postgres + Auth + Storage + Realtime + Edge Functions), extension PostGIS pour la géoloc/carte
 - **Data fetching / cache** : TanStack Query
-- **Cartes** : pas de SDK carte embarqué pour l'instant — le lieu d'un
-  événement s'ouvre via un lien natif ("Ouvrir dans Plans", `Linking`),
-  pour rester testable dans Expo Go sans dev client custom. Mapbox vs
-  Google Maps (`react-native-maps`) reste à trancher si une carte
-  interactive intégrée est voulue plus tard (nécessite `expo prebuild`).
-- **Notifications push** : Expo Notifications
+- **Cartes** : Mapbox (`@rnmapbox/maps`), décision tranchée — carte
+  interactive sur le détail événement en plus du lien "Ouvrir dans Plans"
+  (gardé pour l'itinéraire). Nécessite un development build (voir
+  ci-dessous), Expo Go ne suffit plus.
+- **Notifications push** : Expo Notifications (`expo-notifications`) — API
+  push gratuite d'Expo appelée directement depuis un trigger Postgres via
+  `pg_net`, pas de backend séparé à déployer.
 - **Biométrie** : `expo-local-authentication` (Face ID / Touch ID natif)
+- **Stockage fichiers** : Supabase Storage — bucket `avatars` (public) et
+  `id-documents` (privé, propriétaire uniquement), voir `lib/storage.ts`.
+- **Build** : development build (`expo-dev-client` + `eas.json`) au lieu
+  d'Expo Go, depuis que Face ID réel et Mapbox ont besoin de code natif
+  qu'Expo Go ne peut pas fournir. `ios/`/`android/` ne sont jamais commités
+  (régénérés via `expo prebuild`).
 
 ## Décisions de sécurité / conformité importantes
 
@@ -44,10 +51,16 @@ importante).
 
 ### Vérification d'identité — pas de prestataire KYC pour l'instant
 
-- Le champ `id_document_url` sur `profiles` stocke juste un upload
-  (CNI/passeport/permis), **sans validation automatique**. C'est un choix
-  assumé pour rester à coût zéro au démarrage (pas de budget pour
-  Stripe Identity/Sumsub/Veriff pour l'instant).
+- Le champ `id_document_url` sur `profiles` stocke un upload réel
+  (CNI/passeport/permis) dans le bucket Storage privé `id-documents`, avec
+  un contrôle de cohérence **gratuit et non bloquant** : de l'OCR sur
+  l'appareil (`@react-native-ml-kit/text-recognition`, voir `lib/id-ocr.ts`)
+  vérifie si le nom/prénom/date de naissance saisis apparaissent sur la
+  photo. Ce n'est **pas** une vérification d'identité (pas de lecture de
+  MRZ, pas de comparaison faciale, pas de détection de faux documents) —
+  juste un avertissement qu'on peut ignorer. Choix assumé pour rester à
+  coût zéro (pas de budget pour Stripe Identity/Sumsub/Veriff pour
+  l'instant).
 - Le Face ID utilisé dans l'app (déverrouillage, "vérification" avant de
   s'inscrire à un événement) est le **Face ID natif du téléphone**
   (`expo-local-authentication`) — il confirme "même personne que celle qui

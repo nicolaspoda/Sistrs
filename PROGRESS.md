@@ -5,7 +5,99 @@
 > entier avant de reprendre le travail, surtout après un changement de
 > compte/session Claude Code.
 
-Dernière mise à jour : 2026-09-28 (session app fonctionnelle complète)
+Dernière mise à jour : 2026-09-28 (session : uploads réels, avis, push,
+dev client, carte Mapbox, OCR pièce d'identité)
+
+## Fait (session dev client + carte + push + OCR)
+
+Couvre les manques identifiés en fin de session précédente + les décisions
+prises avec l'utilisateur (dev client accepté, Mapbox, OCR gratuit plutôt
+qu'un vrai KYC, filtre femmes déjà bon). **Rien de tout ceci n'a pu être
+testé depuis ce sandbox** (VM Linux isolée, pas de Docker/Xcode/Android
+Studio, accès registre npm inconstant) — voir la liste de commandes à
+lancer localement à la fin de cette section.
+
+- **Uploads réels vers Supabase Storage** : buckets `avatars` (public
+  lecture) et `id-documents` (privé, propriétaire uniquement) créés via
+  migration (`20260928050000_storage_buckets.sql`) avec policies sur
+  `storage.objects` basées sur le préfixe de chemin `<profile_id>/...`.
+  `lib/storage.ts` uploade via `fetch(uri).blob()` (pas besoin
+  d'expo-file-system). L'avatar (`app/(tabs)/profile.tsx`) et la pièce
+  d'identité (upload différé dans `AuthProvider.signUp`, une fois
+  `auth.uid()` disponible) sont maintenant vraiment persistés.
+- **Avis événements** : section "Avis" ajoutée sur `app/event/[id].tsx` —
+  note moyenne + liste des avis (lecture ouverte), formulaire
+  note/commentaire (upsert) pour une participante confirmée une fois
+  l'événement terminé.
+- **Notifications push (gratuites)** : colonne `profiles.push_token`,
+  `lib/push-notifications.ts` (enregistrement du token Expo côté client,
+  appelé depuis `AuthProvider` une fois le profil chargé), et un trigger SQL
+  (`push_new_notification`, migration `20260928060000_push_notifications.sql`)
+  qui appelle directement `https://exp.host/--/api/v2/push/send` via
+  `pg_net` à chaque insertion dans `notifications` — donc pour tous les
+  triggers `notify_*` existants, sans backend/Edge Function à déployer.
+- **Passage à un development build** (`expo-dev-client` + `eas.json`) : Face
+  ID réel et Mapbox ont tous les deux besoin de code natif qu'Expo Go ne
+  peut pas fournir. Les scripts npm utilisent maintenant `expo start
+  --dev-client` / `expo run:ios` / `expo run:android` au lieu du flux Expo
+  Go. Les dossiers `ios/`/`android/` restent non commités (régénérés à la
+  demande via `expo prebuild`, déjà dans `.gitignore`).
+- **Carte interactive Mapbox** : `components/EventLocationMap.tsx`
+  (`@rnmapbox/maps`) affichée sur le détail événement, juste au-dessus du
+  bouton "Ouvrir dans Plans" (conservé pour l'itinéraire). Token public lu
+  depuis `EXPO_PUBLIC_MAPBOX_TOKEN`.
+- **Contrôle OCR gratuit sur la pièce d'identité** (décision explicite de
+  l'utilisateur : pas de vrai KYC payant) : `lib/id-ocr.ts` fait de l'OCR
+  sur l'appareil (`@react-native-ml-kit/text-recognition`, ML Kit, gratuit,
+  sans serveur tiers) et vérifie si le nom/prénom/date de naissance saisis
+  apparaissent dans le texte reconnu de la photo. Avertissement non
+  bloquant sur `app/(auth)/sign-up.tsx` si ça ne correspond pas (un second
+  appui sur "Continuer" passe outre) — ce n'est explicitement PAS une
+  vérification d'identité (pas de MRZ, pas de comparaison faciale).
+- **Filtre "femmes uniquement"** : vérifié avec l'utilisateur, déjà
+  correctement en place (verrouillé en prod côté `AuthProvider.signUp`,
+  ouvert en dev/staging) — aucune action nécessaire.
+- **Face ID réel** : le code existant (`expo-local-authentication`,
+  `NSFaceIDUsageDescription` dans `app.json`) n'a jamais eu besoin d'être
+  réécrit — c'était bien une limitation d'Expo Go. Une fois le development
+  build en place (voir ci-dessus), Face ID doit fonctionner nativement ;
+  le lien "bypass développeur" reste disponible en dev/staging (utile en
+  simulateur, qui n'a pas de capteur biométrique).
+
+### À lancer sur le Mac (rien de testable depuis ce sandbox)
+
+1. **Installer les nouvelles dépendances** (certaines n'ont pas pu être
+   installées ici, accès registre npm bloqué par le sandbox) :
+   ```
+   npx expo install expo-file-system expo-notifications expo-dev-client @rnmapbox/maps @react-native-ml-kit/text-recognition
+   ```
+   (`expo-file-system` n'est en fait plus utilisé — `lib/storage.ts` s'en
+   passe — mais autant vérifier qu'aucune autre dépendance manque avec
+   `npx expo install --check`.)
+2. **Appliquer les nouvelles migrations** : `supabase db reset` (ou
+   `supabase migration up` si tu ne veux pas perdre des données locales
+   déjà créées) pour les buckets Storage et le trigger push.
+3. **Mapbox** : créer un compte gratuit sur mapbox.com, puis :
+   - Token **public** (`pk.`, scope par défaut) → `EXPO_PUBLIC_MAPBOX_TOKEN`
+     dans `.env`.
+   - Token **secret** (`sk.`, scope "Downloads:Read") → à exporter comme
+     variable d'environnement `RNMAPBOX_DOWNLOADS_TOKEN` avant `expo
+     prebuild` (nécessaire pour télécharger le SDK natif Mapbox pendant le
+     build). Ne jamais commettre ce token secret.
+4. **EAS / projet Expo** : `npx eas init` (ou `npx eas login` puis `eas
+   build:configure`) pour obtenir un `projectId` — nécessaire pour que
+   `getExpoPushTokenAsync` fonctionne (push notifications).
+5. **Générer et lancer le development build** :
+   ```
+   npx expo prebuild
+   npx expo run:ios      # ou : npx eas build --profile development --platform ios
+   ```
+   Ensuite, au quotidien : `npx expo start --dev-client` (plus besoin
+   d'Expo Go — l'app doit être relancée depuis le dev client installé).
+6. **Tester dans l'ordre** : inscription (upload pièce d'identité + OCR),
+   avatar profil, Face ID réel (inscription + inscription à un événement),
+   carte sur le détail événement, avis après un événement passé,
+   notification push reçue sur un autre compte/appareil.
 
 ## Fait
 
@@ -150,29 +242,23 @@ Dernière mise à jour : 2026-09-28 (session app fonctionnelle complète)
 
 ## En cours / à faire ensuite
 
-1. **Avant de tester** : lancer `npx expo install @tanstack/react-query expo-local-authentication expo-image-picker`
-   depuis la racine (utilise `expo install` plutôt que `npm install` pour que
-   les versions soient bien compatibles avec Expo SDK 57), puis
-   `supabase start` (Docker Desktop lancé) pour appliquer les migrations
-   (schéma + RLS + triggers), puis `npx expo start`.
-2. **Uploads réels** : l'avatar et la pièce d'identité sont actuellement
-   stockés en URI locale uniquement (pas de vrai upload vers Supabase
-   Storage) — à brancher (créer un bucket `avatars`/`id-documents`, policies
-   Storage, upload dans `signUp`/`sign-up.tsx`/`app/(tabs)/profile.tsx`).
-3. **Notifications push** : seules des notifications *in-app* existent
-   (table `notifications`, écran `app/notifications.tsx`, alimentée par des
-   triggers SQL). Aucune notification push réelle (`expo-notifications`,
-   tokens, Edge Function d'envoi) n'est branchée — à faire si besoin.
-4. **Carte interactive** : décision actuelle = pas de SDK carte, juste un
-   lien "Ouvrir dans Plans" (voir plus haut). Si une carte intégrée est
-   voulue, il faudra trancher Mapbox vs Google Maps ET passer par un dev
-   client (`expo prebuild` / `expo run:ios`), ce qui casse le flux "juste
-   `expo start` + Expo Go" actuel — à peser avant de s'y engager.
-5. **Tests fonctionnels manuels** : à faire par l'utilisateur sur son Mac
-   (simulateur iOS / Expo Go) — flux complet à valider : inscription
-   (participante ET organisatrice) → création de canal auto → création d'un
-   événement (organisatrice) → découverte + inscription avec Face ID
-   (participante) → demande d'amie → message → post/sondage dans un canal.
+1. **Avant de tester** : voir la liste de commandes juste au-dessus
+   ("À lancer sur le Mac") — installer les nouvelles dépendances natives,
+   appliquer les migrations, configurer Mapbox/EAS, puis générer le
+   development build. Le flux "juste `expo start` + Expo Go" ne fonctionne
+   plus depuis cette session (voir décision dev client ci-dessus).
+2. ~~Uploads réels~~ **fait cette session** (Supabase Storage).
+3. ~~Notifications push~~ **fait cette session** (API push Expo via pg_net).
+4. ~~Carte interactive~~ **fait cette session** (Mapbox, nécessite le dev
+   client + un token).
+5. **Tests fonctionnels manuels** : à faire par l'utilisateur sur son Mac,
+   cette fois sur le development build (plus Expo Go) — flux complet à
+   valider : inscription (participante ET organisatrice, avec OCR pièce
+   d'identité et upload réel) → création de canal auto → création d'un
+   événement (organisatrice, carte Mapbox visible) → découverte +
+   inscription avec Face ID réel (participante) → demande d'amie →
+   message → post/sondage dans un canal → avis après un événement passé →
+   réception d'une notification push sur un second compte.
 6. **Écrans Figma manquants** : toujours non repris (accueil/fil, détail
    événement, création événement, canal individuel, messagerie, profils) —
    l'app a été construite directement en code avec un design simple dans la
