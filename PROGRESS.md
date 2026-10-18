@@ -5,8 +5,40 @@
 > entier avant de reprendre le travail, surtout après un changement de
 > compte/session Claude Code.
 
-Dernière mise à jour : 2026-09-28 (session : uploads réels, avis, push,
-dev client, carte Mapbox, OCR pièce d'identité)
+Dernière mise à jour : 2026-10-19 (session : projet Supabase cloud provisionné,
+pipeline de développement autonome mis en place)
+
+## Fait (session Supabase cloud + pipeline autonome)
+
+- **Projet Supabase cloud créé** : `sistrs` (ref `grwwoigglxuqkgzvijky`, région
+  `eu-west-1`, org "nicolaspoda's Org"). Jusqu'ici le projet ne tournait
+  qu'en local via le CLI/Docker — voir section plus bas. Les deux coexistent
+  maintenant : local pour le dev quotidien sur le Mac, cloud pour le
+  pipeline automatisé (pas de Docker disponible dans le sandbox cloud).
+  **Toutes les migrations existantes appliquées dans l'ordre** :
+  `initial_schema`, `rls_and_triggers` (RLS + policies sur les 19 tables +
+  tous les triggers), `seed_categories`, `categories_public_read` (appliquée
+  via `alter policy ... to anon, authenticated` plutôt que le
+  drop+create de la migration d'origine — même effet, la policy a juste
+  gardé son nom `categories_select_authenticated` au lieu d'être renommée
+  `categories_select_public`), `channel_last_viewed`, `storage_buckets`
+  (buckets `avatars` + `id-documents` avec policies), `push_notifications`
+  (colonne `push_token`, extension `pg_net`, trigger d'envoi push).
+  Advisories de sécurité vérifiées après coup : propre (seul `spatial_ref_sys`,
+  une table système PostGIS, remonte en RLS désactivée — normal, hors de
+  notre contrôle).
+  **Pas encore fait** : remplir `EXPO_PUBLIC_SUPABASE_URL`/`_ANON_KEY` avec
+  les valeurs du projet cloud côté app — le `.env` du Mac pointe encore sur
+  l'instance locale (`http://127.0.0.1:55321`). À décider : garder le flux
+  local pour le dev quotidien et ne brancher le cloud que pour les tests
+  automatisés, ou basculer complètement.
+- **Pipeline de développement autonome mis en place** : une tâche planifiée
+  tourne côté cloud (actuellement désactivée le temps de stabiliser la
+  synchro avec le repo local, à réactiver), lit ce fichier et `CLAUDE.md`,
+  prend une tâche de la liste ci-dessous, code, teste, ouvre une PR.
+  **Point de vigilance identifié** : le connecteur Supabase MCP n'est pas
+  encore attaché à la session de cette tâche planifiée — tant que ce n'est
+  pas réglé, elle ne peut pas elle-même appliquer de nouvelles migrations.
 
 ## Fait (session dev client + carte + push + OCR)
 
@@ -179,7 +211,9 @@ lancer localement à la fin de cette section.
     `.gitignore` adaptés Expo/RN/Supabase.
   - Vérifié : le bundler Metro compile sans erreur en web (953 modules) et
     en iOS (1343 modules) — `npx expo start` fonctionne.
-- **Supabase en local via le CLI** (pas de projet cloud pour l'instant) :
+- **Supabase en local via le CLI** (mise à jour 2026-10-19 : un projet cloud
+  existe maintenant aussi, voir plus haut — ce qui suit décrit l'instance
+  locale Docker, toujours utilisée pour le dev quotidien) :
   `supabase init` + migration initiale dans
   `supabase/migrations/20260928000000_initial_schema.sql` (copie de
   `supabase/schema.sql`, qui reste la source de vérité documentée dans
