@@ -274,6 +274,64 @@ lancer localement à la fin de cette section.
 - **Environnement dev local** : Claude Code CLI installé avec succès sur le
   Mac de l'utilisateur après résolution d'une erreur `ENOTEMPTY` npm.
 
+## Pipeline dev → test E2E → fix en boucle (décision 2026-10-19)
+
+- **Décision architecture tests** : pas de sandbox/simulateur EAS cloud
+  (facturé, quota flou côté minutes de simulateur sur le plan Free). À la
+  place, la tâche planifiée pilote le **Mac de l'utilisateur** via le pont
+  "remote-devices" (`device_bash` + les tools `computer_*`/simulateur local
+  déjà installé) : build dev-client déjà existant, Simulator iOS local,
+  Maestro CLI local (`scripts/run-maestro-suite.sh`). **Coût : 0€**, à
+  condition que le Mac reste allumé, déverrouillé, avec l'app Claude
+  desktop ouverte au moment où la tâche planifiée se déclenche — sinon ce
+  run-là n'a simplement pas accès au Mac (pas d'erreur bloquante, juste pas
+  de test E2E possible ce coup-ci ; la partie "dev" seule n'a pas besoin du
+  Mac).
+- **Rebuild du dev-client** : seulement si un correctif touche du code
+  natif (nouvelle dépendance native, changement `app.json`/plugins,
+  permissions). Les correctifs JS/TS classiques sont testés en rechargeant
+  le bundle Metro sur le build déjà installé, sans rebuild.
+- **Marqueur anti-répétition inutile** : avant de relancer toute la suite
+  Maestro, la tâche planifiée compare le commit `main` actuel au dernier
+  "run E2E" enregistré ci-dessous. Si identique, elle passe directement à
+  une tâche de dev (ou s'arrête si le backlog dev est aussi vide) plutôt
+  que de relancer le Simulator pour rien.
+  - **Dernier run E2E vert enregistré** : aucun pour l'instant (jamais
+    lancé via le pipeline).
+- **Backlog flows Maestro manquants** (objectif utilisateur : couverture de
+  l'app entière, pas seulement signup/login/smoke navigation déjà
+  existants) — à traiter comme des tâches de dev normales, dans cet ordre
+  de priorité suggéré :
+  1. `signup-organizer.yaml` — inscription côté organisatrice (rôle
+     `organizer`, création auto du canal).
+  2. `event-create-and-register.yaml` — création d'événement
+     (organisatrice) + découverte/inscription réelle (participante,
+     Face ID dev bypass) + vérif liste de courses/places restantes.
+  3. `friend-request-flow.yaml` — envoi réel d'une demande d'amie (pas
+     juste lecture d'une demande seedée) + acceptation côté second compte.
+  4. `messaging-send.yaml` — envoi réel d'un message dans une conversation
+     (pas juste lecture du badge "non lu" seedé).
+  5. `channel-post-and-poll.yaml` — organisatrice crée un post + un sondage
+     dans son canal, participante vote.
+  6. `event-review.yaml` — avis (note + commentaire) sur un événement
+     passé.
+  7. `notifications.yaml` — vérifie qu'une notification in-app apparaît
+     après une des actions ci-dessus (demande d'amie, inscription
+     confirmée...).
+  8. `profile-edit-avatar.yaml` — modification du profil + upload avatar
+     réel vers Storage.
+  Chaque nouveau flow doit être ajouté à `scripts/run-maestro-suite.sh` et
+  à la liste lue par la tâche planifiée.
+- **Backlog "prêt pour le store"** (distinct des tests, à ne traiter
+  qu'une fois la couverture E2E ci-dessus avancée) : politique de
+  confidentialité (obligatoire — l'app traite genre + pièce d'identité),
+  fiches App Store/Play Store (description, captures d'écran, catégorie
+  d'âge), comptes développeur Apple (99$/an) et Google Play (25$ une fois)
+  si pas déjà créés, configuration EAS Submit. **Décision en attente de
+  l'utilisateur** : ces comptes développeur payants ne doivent pas être
+  créés automatiquement par le pipeline — à confirmer explicitement le
+  moment venu.
+
 ## En cours / à faire ensuite
 
 1. **Avant de tester** : voir la liste de commandes juste au-dessus
