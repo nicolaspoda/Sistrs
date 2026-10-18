@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Avatar } from "../../components/Avatar";
+import { PatternBackground } from "../../components/PatternBackground";
 import { Colors } from "../../constants/colors";
 import { useAuth } from "../../lib/auth/AuthProvider";
 import { supabase } from "../../lib/supabase";
@@ -244,11 +245,13 @@ export default function ConversationScreen() {
 
   if (isLoading || !profile) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-        </View>
-      </SafeAreaView>
+      <PatternBackground>
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+          </View>
+        </SafeAreaView>
+      </PatternBackground>
     );
   }
 
@@ -257,11 +260,12 @@ export default function ConversationScreen() {
     : "Conversation";
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+    <PatternBackground>
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="chevron-back" size={26} color={Colors.text} />
@@ -313,15 +317,16 @@ export default function ConversationScreen() {
             <Ionicons name="send" size={18} color={Colors.white} />
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </PatternBackground>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: "transparent",
   },
   flex: {
     flex: 1,

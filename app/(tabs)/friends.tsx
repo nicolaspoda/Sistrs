@@ -16,6 +16,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { ScreenContainer } from "../../components/ScreenContainer";
 import { Colors } from "../../constants/colors";
+import { CardShadow } from "../../constants/shadows";
 import { useAuth } from "../../lib/auth/AuthProvider";
 import { supabase } from "../../lib/supabase";
 import type { Friendship, Profile } from "../../lib/types";
@@ -257,6 +258,7 @@ export default function FriendsScreen() {
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
           ListEmptyComponent={
             <EmptyState
+              icon="mail-unread-outline"
               title="Aucune demande en attente"
               subtitle="Les demandes d'amitié que tu reçois s'afficheront ici."
             />
@@ -301,6 +303,7 @@ export default function FriendsScreen() {
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
           ListEmptyComponent={
             <EmptyState
+              icon="people-outline"
               title="Pas encore d'amies"
               subtitle="Cherche des profils dans l'onglet Trouver pour envoyer une demande."
             />
@@ -314,7 +317,7 @@ export default function FriendsScreen() {
               <Avatar url={item.friend.avatar_url} name={fullName(item.friend)} />
               <View style={styles.rowInfo}>
                 <Text style={styles.rowName}>{fullName(item.friend)}</Text>
-                <Text style={styles.rowSubtitle}>{item.friend.status}</Text>
+                <Text style={[styles.rowSubtitle, styles.statusText]}>{item.friend.status}</Text>
               </View>
               <TouchableOpacity
                 style={[styles.smallButton, styles.smallButtonOutline]}
@@ -351,9 +354,10 @@ export default function FriendsScreen() {
           }
           ListEmptyComponent={
             searchQuery.trim().length >= 2 && !isSearching ? (
-              <EmptyState title="Aucun résultat" subtitle="Essaie un autre prénom ou nom." />
+              <EmptyState icon="search-outline" title="Aucun résultat" subtitle="Essaie un autre prénom ou nom." />
             ) : (
               <EmptyState
+                icon="person-add-outline"
                 title="Trouve tes amies"
                 subtitle="Tape au moins 2 lettres d'un prénom ou d'un nom pour lancer la recherche."
               />
@@ -367,7 +371,7 @@ export default function FriendsScreen() {
                 <Avatar url={item.avatar_url} name={fullName(item)} />
                 <View style={styles.rowInfo}>
                   <Text style={styles.rowName}>{fullName(item)}</Text>
-                  <Text style={styles.rowSubtitle}>{item.status}</Text>
+                  <Text style={[styles.rowSubtitle, styles.statusText]}>{item.status}</Text>
                 </View>
                 {isFriend ? (
                   <Text style={styles.statusLabel}>Déjà amie</Text>
@@ -415,11 +419,10 @@ const styles = StyleSheet.create({
   tabButton: {
     flex: 1,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: "center",
     backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    ...CardShadow,
   },
   tabButtonActive: {
     backgroundColor: Colors.primary,
@@ -448,10 +451,12 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    backgroundColor: Colors.surface,
+    borderRadius: 18,
+    padding: 12,
+    marginBottom: 10,
     gap: 12,
+    ...CardShadow,
   },
   rowInfo: {
     flex: 1,
@@ -465,6 +470,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textMuted,
     marginTop: 2,
+  },
+  // Transformation réservée aux valeurs de statut brutes ("commun", "bronze"...)
+  // — ne doit jamais s'appliquer à une phrase complète (mettrait une
+  // majuscule à Chaque Mot).
+  statusText: {
     textTransform: "capitalize",
   },
   rowActions: {

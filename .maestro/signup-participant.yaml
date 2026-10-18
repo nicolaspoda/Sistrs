@@ -1,0 +1,109 @@
+# Parcours d'inscription complet (participante) : infos, pièce d'identité
+# (fausse carte pré-ajoutée dans la pellicule du Simulator, voir
+# scripts/seed-fake-id.sh), OCR Vision, bypass Face ID dev, préférences,
+# création de compte. Validé manuellement le 13/10/2026 (bug du module
+# natif VisionTextRecognition corrigé).
+#
+# Usage (email unique à chaque run pour éviter "compte déjà existant") :
+#   maestro test \
+#     --env SIGNUP_EMAIL=test.e2e.$(date +%s)@example.com \
+#     --env SIGNUP_PASSWORD=motdepasse123 \
+#     .maestro/signup-participant.yaml
+#
+# Prérequis : la pellicule du Simulator contient déjà au moins une photo
+# (scripts/seed-fake-id.sh) et l'app a déjà obtenu l'accès complet aux
+# Photos au moins une fois (permission au niveau du Simulator, PAS de
+# l'app — clearState: true ne la réinitialise donc pas).
+appId: com.nicolaspoda.sistrs
+---
+- launchApp:
+    clearState: true
+# Premier lancement après clearState : Metro doit resservir/recharger le
+# bundle JS, ce qui dépasse le délai d'attente implicite par défaut de
+# Maestro sur certaines machines — on attend explicitement plus longtemps.
+- extendedWaitUntil:
+    visible: "S'inscrire"
+    timeout: 30000
+- tapOn: "S'inscrire"
+
+# --- Étape 1 : Tes informations ---
+- tapOn:
+    id: "input-first-name"
+- inputText: "Lea"
+- tapOn:
+    id: "input-last-name"
+- inputText: "Martin"
+- tapOn: "Tes informations"  # tap sur un texte statique pour fermer le clavier (hideKeyboard non fiable ici)
+
+# Date de naissance : on garde le défaut pré-sélectionné par l'app
+# ("aujourd'hui - 25 ans", toujours majeur) plutôt que de naviguer le
+# calendrier.
+- tapOn:
+    id: "input-birth-date"
+- tapOn: "Valider"
+
+- tapOn:
+    id: "input-email"
+- inputText: "${SIGNUP_EMAIL}"
+# Maestro/XCTest ne saisit pas fiablement dans un UITextField avec
+# secureTextEntry actif (texte tapé qui n'atterrit jamais dans le champ, ou
+# de façon corrompue si on bascule la visibilité pendant la frappe — le
+# TextInput se re-crée côté natif) — on bascule les deux champs en "mot de
+# passe visible" AVANT de taper quoi que ce soit, puis on ne retouche plus
+# au bouton oeil.
+- tapOn:
+    id: "input-password-toggle-visibility"
+- tapOn:
+    id: "input-confirm-password-toggle-visibility"
+- tapOn:
+    id: "input-password"
+- inputText: "${SIGNUP_PASSWORD}"
+- tapOn:
+    id: "input-confirm-password"
+- inputText: "${SIGNUP_PASSWORD}"
+- tapOn: "Tes informations"  # tap sur un texte statique pour fermer le clavier (hideKeyboard non fiable ici)
+
+# "Participante" est déjà le rôle par défaut, on le confirme explicitement
+# pour que le flow reste correct si ce défaut change un jour.
+- tapOn:
+    id: "role-participant"
+
+# --- Pièce d'identité ---
+# On utilise le raccourci développeur (charge la fausse carte directement
+# depuis les assets de l'app) plutôt que le vrai sélecteur de photos
+# natif : ce dernier est une UI système (PHPicker) non fiable à piloter
+# par coordonnées dans Maestro. Le flux "Ajouter une pièce d'identité" →
+# galerie reste testé manuellement de temps en temps pour couvrir le vrai
+# chemin utilisateur.
+- tapOn:
+    id: "link-dev-use-test-id"
+- assertVisible: "Pièce d'identité ajoutée ✓"
+
+- tapOn:
+    id: "button-continue-step1"
+
+# L'OCR peut renvoyer un avertissement si la date lue sur la pièce ne
+# correspond pas à la date de naissance saisie (la fausse carte a une
+# date fixe, alors que le champ "date de naissance" change chaque jour
+# via le défaut "aujourd'hui - 25 ans") — le même bouton change alors de
+# libellé ("Continuer quand même") sans changer d'écran, donc on retape
+# dessus seulement si besoin.
+- runFlow:
+    when:
+      visible: "Continuer quand même"
+    commands:
+      - tapOn:
+          id: "button-continue-step1"
+
+# --- Étape 2 : Tes préférences ---
+- tapOn:
+    id: "age-bracket-18-25"
+- tapOn: "Bar"
+- tapOn: "Restau"
+- tapOn:
+    id: "link-dev-bypass-faceid"
+- assertVisible: "Face ID activé ✓"
+
+- tapOn:
+    id: "button-create-account"
+- assertVisible: "Compte créé avec succès.*"

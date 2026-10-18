@@ -1,16 +1,16 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Redirect, Slot, useSegments } from "expo-router";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, StyleSheet } from "react-native";
 
-import { Colors } from "../constants/colors";
+import { PatternBackground } from "../components/PatternBackground";
 import { AuthProvider, useAuth } from "../lib/auth/AuthProvider";
 import { queryClient } from "../lib/query-client";
 
 function LoadingScreen() {
   return (
-    <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" color={Colors.primary} />
-    </View>
+    <PatternBackground style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color="#ED3C7B" />
+    </PatternBackground>
   );
 }
 
@@ -51,6 +51,5 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.background,
   },
 });

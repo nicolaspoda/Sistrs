@@ -1,0 +1,60 @@
+# Connexion avec le compte de test participante créé pour les tests
+# manuels (voir supabase/dev-seed-test-participant.sql). Les identifiants
+# sont passés en variables d'environnement, jamais en dur ici :
+#   maestro test --env TEST_EMAIL=test.participante@sistrs.app \
+#     --env TEST_PASSWORD=le-vrai-mot-de-passe .maestro/login.yaml
+appId: com.nicolaspoda.sistrs
+---
+- launchApp:
+    clearState: false
+# Dialogues qui peuvent apparaître au lancement, selon l'état de l'app :
+# - le lanceur Expo Dev Client si la connexion au serveur Metro a été
+#   oubliée (après un clearState par exemple) ;
+# - la bulle d'aide "Dev tools" d'Expo, qui semble se redéclencher à
+#   chaque reconnexion au serveur Metro (pas juste au tout premier lancement).
+# Tous best-effort (optional: true) : rien ne garantit qu'ils apparaissent.
+- tapOn:
+    text: ".*8081.*"
+    optional: true
+- tapOn:
+    text: "Close"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 2000
+# Si la session précédente est encore active (clearState: false), on est
+# déjà connectée et on saute le formulaire — on vérifie la PRÉSENCE du
+# formulaire de connexion plutôt que l'ABSENCE de l'écran d'accueil
+# ("notVisible" s'est montré peu fiable ici avec Maestro sur ce Simulator,
+# contrairement à "visible").
+- runFlow:
+    when:
+      visible:
+        id: "input-email"
+    commands:
+      - tapOn:
+          id: "input-email"
+      - inputText: "${TEST_EMAIL}"
+      - tapOn:
+          id: "input-password"
+      - inputText: "${TEST_PASSWORD}"
+      # Le clavier a un bouton "Retour"/"Terminé" sur ce champ qui déclenche
+      # déjà la connexion (onSubmitEditing) — hideKeyboard l'actionne, donc
+      # la connexion peut déjà avoir eu lieu avant qu'on tape sur
+      # button-sign-in : ce tap est donc optionnel (fallback si jamais
+      # onSubmitEditing ne suffisait pas).
+      - hideKeyboard
+      - tapOn:
+          id: "button-sign-in"
+          optional: true
+      # Dialogues système iOS qui peuvent apparaître après la connexion :
+      # demande d'autorisation des notifications push
+      # (lib/notifications.ts) et proposition d'enregistrer le mot de
+      # passe dans le trousseau — aucun des deux n'est garanti donc on les
+      # traite en best-effort.
+      - tapOn:
+          text: "Autoriser"
+          optional: true
+      - tapOn:
+          text: "Plus tard"
+          optional: true
+- assertVisible: "Communauté vérifiée.*"

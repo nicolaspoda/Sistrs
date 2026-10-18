@@ -12,7 +12,8 @@
       "infoPlist": {
         "NSFaceIDUsageDescription": "Sistrs utilise Face ID pour confirmer ton identité à l'inscription et lors de l'inscription à un événement.",
         "NSPhotoLibraryUsageDescription": "Sistrs a besoin d'accéder à tes photos pour choisir ton avatar ou ta pièce d'identité."
-      }
+      },
+      "bundleIdentifier": "com.nicolaspoda.sistrs"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +22,13 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.nicolaspoda.sistrs"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -37,6 +44,13 @@
         "@rnmapbox/maps",
         {}
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4022d5a1-8d89-4a63-aa04-a32e49727fb1"
+      }
+    },
+    "owner": "nicolaspoda"
   }
 }

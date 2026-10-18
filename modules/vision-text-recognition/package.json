@@ -1,0 +1,8 @@
+{
+  "name": "vision-text-recognition",
+  "version": "1.0.0",
+  "description": "OCR local via le framework Vision d'Apple (remplace ML Kit, compatible simulateur)",
+  "main": "index.ts",
+  "author": "Sistrs",
+  "license": "UNLICENSED"
+}

@@ -18,6 +18,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { ScreenContainer } from "../../components/ScreenContainer";
 import { Colors } from "../../constants/colors";
+import { CardShadow } from "../../constants/shadows";
 import { notifyChannelsRead } from "../../lib/app-events";
 import { useAuth } from "../../lib/auth/AuthProvider";
 import { supabase } from "../../lib/supabase";
@@ -60,6 +61,27 @@ type PollItem = {
 
 type FeedItem = PostItem | PollItem;
 
+function formatBubbleTime(isoDate: string): string {
+  return new Date(isoDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function isSameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+/** Étiquette du séparateur de jour affiché au-dessus d'un groupe de publications
+ * du même jour dans le fil, façon canal de messagerie (Aujourd'hui / Hier / date). */
+function formatDaySeparator(isoDate: string): string {
+  const date = new Date(isoDate);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  if (isSameDay(date, today)) return "Aujourd'hui";
+  if (isSameDay(date, yesterday)) return "Hier";
+  return date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+}
+
 export default function ChannelDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -67,6 +89,7 @@ export default function ChannelDetailScreen() {
 
   const [channel, setChannel] = useState<ChannelDetail | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [subscriberCount, setSubscriberCount] = useState(0);
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -108,6 +131,12 @@ export default function ChannelDetailScreen() {
       description: channelData.description,
       organizer: (channelData.organizer as unknown as Profile) ?? null,
     });
+
+    const { count: subscribersCountResult } = await supabase
+      .from("channel_subscriptions")
+      .select("subscriber_id", { count: "exact", head: true })
+      .eq("channel_id", id);
+    setSubscriberCount(subscribersCountResult ?? 0);
 
     if (profile) {
       const { data: subscriptionData } = await supabase
@@ -463,30 +492,43 @@ export default function ChannelDetailScreen() {
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
 
-        <View style={styles.header}>
-          <Avatar url={channel.organizer?.avatar_url} name={organizerName} size={64} />
-          <View style={styles.headerInfo}>
-            <Text style={styles.headerName}>{channel.name}</Text>
-            {channel.description ? <Text style={styles.headerDescription}>{channel.description}</Text> : null}
-          </View>
-        </View>
-
-        {profile ? (
-          <TouchableOpacity
-            style={[styles.followButton, isSubscribed && styles.followButtonActive]}
-            onPress={toggleFollow}
-            disabled={isFollowPending}
-            activeOpacity={0.85}
-          >
-            {isFollowPending ? (
-              <ActivityIndicator size="small" color={isSubscribed ? Colors.primary : Colors.white} />
-            ) : (
-              <Text style={[styles.followLabel, isSubscribed && styles.followLabelActive]}>
-                {isSubscribed ? "Ne plus suivre" : "Suivre"}
+        <View style={styles.headerCard}>
+          <View style={styles.header}>
+            <Avatar url={channel.organizer?.avatar_url} name={organizerName} size={72} />
+            <View style={styles.headerInfo}>
+              <View style={styles.headerNameRow}>
+                <Text style={styles.headerName} numberOfLines={1}>{channel.name}</Text>
+                <Ionicons name="megaphone" size={15} color={Colors.primary} />
+              </View>
+              <Text style={styles.headerMeta}>
+                {subscriberCount} abonnée{subscriberCount > 1 ? "s" : ""}
               </Text>
-            )}
-          </TouchableOpacity>
-        ) : null}
+              {channel.description ? (
+                <Text style={styles.headerDescription} numberOfLines={2}>{channel.description}</Text>
+              ) : null}
+            </View>
+          </View>
+
+          {profile ? (
+            <TouchableOpacity
+              style={[styles.followButton, isSubscribed && styles.followButtonActive]}
+              onPress={toggleFollow}
+              disabled={isFollowPending}
+              activeOpacity={0.85}
+            >
+              {isFollowPending ? (
+                <ActivityIndicator size="small" color={isSubscribed ? Colors.primary : Colors.white} />
+              ) : (
+                <>
+                  {isSubscribed ? <Ionicons name="checkmark" size={15} color={Colors.primary} /> : null}
+                  <Text style={[styles.followLabel, isSubscribed && styles.followLabelActive]}>
+                    {isSubscribed ? "Abonnée" : "S'abonner"}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          ) : null}
+        </View>
 
         {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
 
@@ -570,26 +612,45 @@ export default function ChannelDetailScreen() {
 
         <View style={styles.feed}>
           {feed.length === 0 ? (
-            <EmptyState title="Pas encore de publication" subtitle="Les posts et sondages de ce canal apparaîtront ici." />
+            <EmptyState
+              icon="megaphone-outline"
+              title="Pas encore de publication"
+              subtitle="Les posts et sondages de ce canal apparaîtront ici."
+            />
           ) : (
-            feed.map((item) =>
-              item.kind === "post" ? (
-                <PostCard
-                  key={`post-${item.id}`}
-                  post={item}
-                  isLikePending={pendingLikeId === item.id}
-                  onToggleLike={() => toggleLike(item)}
-                  onOpenEvent={() => item.event_id && router.push(`/event/${item.event_id}`)}
-                />
-              ) : (
-                <PollCard
-                  key={`poll-${item.id}`}
-                  poll={item}
-                  isVotePending={pendingVotePollId === item.id}
-                  onVote={(optionId) => voteOnPoll(item, optionId)}
-                />
-              )
-            )
+            feed.map((item, index) => {
+              const previousItem = feed[index - 1];
+              const showDaySeparator =
+                !previousItem || !isSameDay(new Date(previousItem.created_at), new Date(item.created_at));
+
+              return (
+                <View key={`${item.kind}-${item.id}`}>
+                  {showDaySeparator ? (
+                    <View style={styles.daySeparatorRow}>
+                      <Text style={styles.daySeparatorText}>{formatDaySeparator(item.created_at)}</Text>
+                    </View>
+                  ) : null}
+                  {item.kind === "post" ? (
+                    <PostCard
+                      post={item}
+                      organizerName={organizerName}
+                      organizerAvatarUrl={channel.organizer?.avatar_url}
+                      isLikePending={pendingLikeId === item.id}
+                      onToggleLike={() => toggleLike(item)}
+                      onOpenEvent={() => item.event_id && router.push(`/event/${item.event_id}`)}
+                    />
+                  ) : (
+                    <PollCard
+                      poll={item}
+                      organizerName={organizerName}
+                      organizerAvatarUrl={channel.organizer?.avatar_url}
+                      isVotePending={pendingVotePollId === item.id}
+                      onVote={(optionId) => voteOnPoll(item, optionId)}
+                    />
+                  )}
+                </View>
+              );
+            })
           )}
         </View>
       </ScrollView>
@@ -599,33 +660,44 @@ export default function ChannelDetailScreen() {
 
 function PostCard({
   post,
+  organizerName,
+  organizerAvatarUrl,
   isLikePending,
   onToggleLike,
   onOpenEvent,
 }: {
   post: PostItem;
+  organizerName: string;
+  organizerAvatarUrl?: string | null;
   isLikePending: boolean;
   onToggleLike: () => void;
   onOpenEvent: () => void;
 }) {
   return (
-    <View style={styles.card}>
-      {post.content ? <Text style={styles.cardContent}>{post.content}</Text> : null}
-      {post.event_id ? (
-        <TouchableOpacity onPress={onOpenEvent} style={styles.eventLink} activeOpacity={0.8}>
-          <Ionicons name="calendar" size={16} color={Colors.primary} />
-          <Text style={styles.eventLinkLabel}>Voir l'événement</Text>
-        </TouchableOpacity>
-      ) : null}
-      <View style={styles.cardFooter}>
-        <TouchableOpacity style={styles.likeButton} onPress={onToggleLike} disabled={isLikePending} activeOpacity={0.8}>
-          <Ionicons
-            name={post.likedByMe ? "heart" : "heart-outline"}
-            size={18}
-            color={post.likedByMe ? Colors.primary : Colors.textMuted}
-          />
-          <Text style={styles.likeCount}>{post.likesCount}</Text>
-        </TouchableOpacity>
+    <View style={styles.messageRow}>
+      <Avatar url={organizerAvatarUrl} name={organizerName} size={30} />
+      <View style={styles.messageBody}>
+        <Text style={styles.senderName} numberOfLines={1}>{organizerName}</Text>
+        <View style={styles.bubble}>
+          {post.content ? <Text style={styles.cardContent}>{post.content}</Text> : null}
+          {post.event_id ? (
+            <TouchableOpacity onPress={onOpenEvent} style={styles.eventLink} activeOpacity={0.8}>
+              <Ionicons name="calendar" size={16} color={Colors.primary} />
+              <Text style={styles.eventLinkLabel}>Voir l'événement</Text>
+            </TouchableOpacity>
+          ) : null}
+          <View style={styles.cardFooter}>
+            <TouchableOpacity style={styles.likeButton} onPress={onToggleLike} disabled={isLikePending} activeOpacity={0.8}>
+              <Ionicons
+                name={post.likedByMe ? "heart" : "heart-outline"}
+                size={16}
+                color={post.likedByMe ? Colors.primary : Colors.textMuted}
+              />
+              <Text style={[styles.likeCount, post.likedByMe && styles.likeCountActive]}>{post.likesCount}</Text>
+            </TouchableOpacity>
+            <Text style={styles.bubbleTime}>{formatBubbleTime(post.created_at)}</Text>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -633,17 +705,29 @@ function PostCard({
 
 function PollCard({
   poll,
+  organizerName,
+  organizerAvatarUrl,
   isVotePending,
   onVote,
 }: {
   poll: PollItem;
+  organizerName: string;
+  organizerAvatarUrl?: string | null;
   isVotePending: boolean;
   onVote: (optionId: string) => void;
 }) {
   const totalVotes = poll.options.reduce((sum, option) => sum + option.votesCount, 0);
 
   return (
-    <View style={styles.card}>
+    <View style={styles.messageRow}>
+      <Avatar url={organizerAvatarUrl} name={organizerName} size={30} />
+      <View style={styles.messageBody}>
+        <Text style={styles.senderName} numberOfLines={1}>{organizerName}</Text>
+        <View style={styles.bubble}>
+      <View style={styles.pollHeaderRow}>
+        <Ionicons name="bar-chart" size={15} color={Colors.primary} />
+        <Text style={styles.pollLabel}>SONDAGE</Text>
+      </View>
       <Text style={styles.pollQuestion}>{poll.question}</Text>
       {poll.options.map((option) => {
         const percentage = totalVotes > 0 ? Math.round((option.votesCount / totalVotes) * 100) : 0;
@@ -669,7 +753,12 @@ function PollCard({
           </TouchableOpacity>
         );
       })}
-      <Text style={styles.pollTotal}>{totalVotes} vote{totalVotes === 1 ? "" : "s"}</Text>
+      <View style={styles.cardFooter}>
+        <Text style={styles.pollTotal}>{totalVotes} vote{totalVotes === 1 ? "" : "s"}</Text>
+        <Text style={styles.bubbleTime}>{formatBubbleTime(poll.created_at)}</Text>
+      </View>
+        </View>
+      </View>
     </View>
   );
 }
@@ -692,32 +781,52 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 8,
   },
+  headerCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 16,
+    ...CardShadow,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
   },
   headerInfo: {
     flex: 1,
     marginLeft: 14,
   },
+  headerNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
   headerName: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "800",
     color: Colors.text,
+    flexShrink: 1,
+  },
+  headerMeta: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    fontWeight: "600",
+    marginTop: 2,
   },
   headerDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.textMuted,
-    marginTop: 4,
+    marginTop: 6,
   },
   followButton: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 11,
+    borderRadius: 999,
     backgroundColor: Colors.primary,
-    marginBottom: 16,
+    marginTop: 14,
   },
   followButtonActive: {
     backgroundColor: Colors.primaryLight,
@@ -791,13 +900,55 @@ const styles = StyleSheet.create({
   feed: {
     marginTop: 4,
   },
-  card: {
+  daySeparatorRow: {
+    alignItems: "center",
+    marginVertical: 12,
+  },
+  daySeparatorText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: Colors.textMuted,
+    backgroundColor: Colors.white,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    overflow: "hidden",
+    ...CardShadow,
+  },
+  // Ligne "message" façon canal de messagerie : avatar de l'organisatrice à
+  // gauche + bulle à droite, pour que chaque publication se lise clairement
+  // comme un message envoyé par elle (et pas une carte anonyme).
+  messageRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 8,
+    marginBottom: 12,
+  },
+  messageBody: {
+    flex: 1,
+    maxWidth: "88%",
+  },
+  senderName: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.primaryDark,
+    marginBottom: 3,
+    marginLeft: 4,
+  },
+  // Bulle façon canal de messagerie (Telegram) : coin inférieur gauche moins
+  // arrondi pour évoquer une "queue" de bulle de message plutôt qu'une carte
+  // classique.
+  bubble: {
+    alignSelf: "flex-start",
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 16,
-    marginBottom: 14,
+    borderRadius: 18,
+    borderBottomLeftRadius: 4,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 9,
+    ...CardShadow,
   },
   cardContent: {
     fontSize: 15,
@@ -817,7 +968,9 @@ const styles = StyleSheet.create({
   },
   cardFooter: {
     flexDirection: "row",
-    marginTop: 12,
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 10,
   },
   likeButton: {
     flexDirection: "row",
@@ -825,9 +978,28 @@ const styles = StyleSheet.create({
   },
   likeCount: {
     marginLeft: 6,
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.textMuted,
     fontWeight: "600",
+  },
+  likeCountActive: {
+    color: Colors.primary,
+  },
+  bubbleTime: {
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  pollHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginBottom: 6,
+  },
+  pollLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: Colors.primary,
+    letterSpacing: 0.4,
   },
   pollQuestion: {
     fontSize: 16,
@@ -878,6 +1050,5 @@ const styles = StyleSheet.create({
   pollTotal: {
     fontSize: 12,
     color: Colors.textMuted,
-    marginTop: 4,
   },
 });

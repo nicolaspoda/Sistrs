@@ -13,8 +13,10 @@ import {
 
 import { Avatar } from "../../components/Avatar";
 import { EmptyState } from "../../components/EmptyState";
+import { PrimaryButton } from "../../components/PrimaryButton";
 import { ScreenContainer } from "../../components/ScreenContainer";
 import { Colors } from "../../constants/colors";
+import { CardShadow } from "../../constants/shadows";
 import { useAuth } from "../../lib/auth/AuthProvider";
 import { supabase } from "../../lib/supabase";
 import type { Profile } from "../../lib/types";
@@ -156,8 +158,16 @@ export default function ChannelsScreen() {
 
         {followedChannels.length === 0 ? (
           <EmptyState
+            icon="megaphone-outline"
             title="Aucun canal suivi"
             subtitle="Abonne-toi au canal d'une organisatrice depuis une de ses publications ou son profil pour le retrouver ici."
+            action={
+              <PrimaryButton
+                label="Découvrir des événements"
+                variant="outline"
+                onPress={() => router.push("/(tabs)")}
+              />
+            }
           />
         ) : (
           followedChannels.map((channel) => (
@@ -190,10 +200,11 @@ function ChannelListItem({ channel, isPending, onPress, onToggleSubscription }: 
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.75}>
       <View style={styles.avatarWrapper}>
-        <Avatar url={channel.organizer?.avatar_url} name={organizerName} size={48} />
+        <Avatar url={channel.organizer?.avatar_url} name={organizerName} size={56} />
         {channel.isSubscribed && channel.hasNewContent ? <View style={styles.unreadDot} /> : null}
       </View>
       <View style={styles.rowInfo}>
+        <Text style={styles.rowTag}>Organisatrice</Text>
         <Text style={styles.rowName}>{channel.name}</Text>
         {channel.description ? (
           <Text style={styles.rowDescription} numberOfLines={1}>
@@ -252,11 +263,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderRadius: 20,
+    padding: 14,
+    marginBottom: 12,
+    ...CardShadow,
   },
   avatarWrapper: {
     position: "relative",
@@ -265,17 +275,25 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -2,
     right: -2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: Colors.danger,
+    width: 13,
+    height: 13,
+    borderRadius: 6.5,
+    backgroundColor: Colors.primary,
     borderWidth: 2,
-    borderColor: Colors.background,
+    borderColor: Colors.white,
   },
   rowInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 14,
     marginRight: 8,
+  },
+  rowTag: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: Colors.primary,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+    marginBottom: 2,
   },
   rowName: {
     fontSize: 16,
@@ -291,14 +309,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingVertical: 9,
+    borderRadius: 14,
     backgroundColor: Colors.primary,
     minWidth: 76,
     justifyContent: "center",
   },
   followButtonActive: {
     backgroundColor: Colors.primaryLight,
+    borderRadius: 14,
   },
   followIcon: {
     marginRight: 4,

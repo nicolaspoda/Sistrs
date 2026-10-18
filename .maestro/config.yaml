@@ -1,0 +1,4 @@
+# Config Maestro pour Sistrs — ciblage du Simulator iOS (le support des
+# vrais appareils iOS physiques est encore expérimental côté Maestro
+# open-source, cf. discussion sur le repo GitHub de Maestro).
+appId: com.nicolaspoda.sistrs

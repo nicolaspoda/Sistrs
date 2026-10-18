@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
+import { Avatar } from "../../components/Avatar";
 import { EmptyState } from "../../components/EmptyState";
 import { EventCard, type EventWithDetails } from "../../components/events/EventCard";
 import { ScreenContainer } from "../../components/ScreenContainer";
@@ -14,7 +15,7 @@ const EVENT_SELECT = `
   *,
   category:categories(id, name, emoji, created_at),
   channel:channels(id, organizer_id, organizer:profiles!channels_organizer_id_fkey(id, first_name, last_name, avatar_url)),
-  registrations:event_registrations(id, status, participant_id)
+  registrations:event_registrations(id, status, participant_id, participant:profiles(id, first_name, last_name, avatar_url))
 `;
 
 export default function AccueilScreen() {
@@ -84,19 +85,24 @@ export default function AccueilScreen() {
   return (
     <ScreenContainer>
       <View style={styles.header}>
-        <View style={styles.headerSide}>
+        <View style={styles.brandRow}>
+          <Image
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            source={require("../../assets/images/logo.png")}
+            style={styles.brandLogo}
+          />
+          <Text style={styles.headerTitle}>Sistrs</Text>
+        </View>
+        <View style={styles.headerActions}>
           {profile?.role === "organizer" ? (
             <TouchableOpacity
               style={styles.iconButton}
               onPress={() => router.push("/event/create")}
               activeOpacity={0.85}
             >
-              <Ionicons name="add" size={22} color={Colors.white} />
+              <Ionicons name="add" size={20} color={Colors.white} />
             </TouchableOpacity>
           ) : null}
-        </View>
-        <Text style={styles.headerTitle}>Accueil</Text>
-        <View style={[styles.headerSide, styles.headerSideRight]}>
           <TouchableOpacity style={styles.bellButton} onPress={() => router.push("/notifications")} activeOpacity={0.85}>
             <Ionicons name="notifications-outline" size={22} color={Colors.text} />
             {unreadCount > 0 ? (
@@ -105,7 +111,22 @@ export default function AccueilScreen() {
               </View>
             ) : null}
           </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push("/(tabs)/profile")} activeOpacity={0.85}>
+            <Avatar
+              url={profile?.avatar_url}
+              name={profile ? `${profile.first_name} ${profile.last_name}` : ""}
+              size={32}
+            />
+          </TouchableOpacity>
         </View>
+      </View>
+
+      <View style={styles.trustBanner}>
+        <Ionicons name="shield-checkmark" size={20} color={Colors.primary} />
+        <Text style={styles.trustBannerText}>
+          Communauté vérifiée : pièce d'identité à l'inscription, confirmation Face ID à chaque
+          inscription à un événement.
+        </Text>
       </View>
 
       {isLoading ? (
@@ -145,28 +166,54 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 8,
   },
-  headerSide: {
-    width: 40,
-    alignItems: "flex-start",
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
-  headerSideRight: {
-    alignItems: "flex-end",
+  brandLogo: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "800",
     color: Colors.primary,
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
   iconButton: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     borderRadius: 10,
     backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
   bellButton: {
-    padding: 4,
+    padding: 2,
+  },
+  trustBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginHorizontal: 20,
+    marginBottom: 14,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  trustBannerText: {
+    flex: 1,
+    fontSize: 12,
+    color: Colors.text,
+    lineHeight: 16,
   },
   badge: {
     position: "absolute",

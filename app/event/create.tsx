@@ -3,6 +3,7 @@ import { useEffect, useState, type PropsWithChildren } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, type ViewStyle } from "react-native";
 
 import { BackButton } from "../../components/BackButton";
+import { PatternBackground } from "../../components/PatternBackground";
 import { DatePickerField } from "../../components/DatePickerField";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { Colors } from "../../constants/colors";
@@ -183,8 +184,9 @@ export default function CreateEventScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <BackButton style={styles.backButton} />
+    <PatternBackground>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <BackButton style={styles.backButton} />
       <Text style={styles.title}>Créer un événement</Text>
 
       <Field label="Titre">
@@ -307,7 +309,8 @@ export default function CreateEventScreen() {
         isLoading={isSubmitting}
         style={styles.submitButton}
       />
-    </ScrollView>
+      </ScrollView>
+    </PatternBackground>
   );
 }
 
@@ -334,7 +337,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 24,
     paddingVertical: 48,
-    backgroundColor: Colors.background,
   },
   title: {
     fontSize: 26,

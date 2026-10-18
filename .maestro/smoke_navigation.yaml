@@ -1,0 +1,37 @@
+# Smoke test du parcours participante une fois connectée : vérifie que
+# chaque onglet charge bien son contenu attendu, en s'appuyant sur les
+# données insérées par dev-seed-test-participant.sql (canaux suivis, amie,
+# conversation, événement inscrit). Ne couvre pas l'inscription/Face ID/
+# scan de pièce d'identité : ces étapes biométriques ou caméra ne sont pas
+# fiables à automatiser sur Simulator pour l'instant (voir le message
+# Claude qui accompagne ce fichier).
+appId: com.nicolaspoda.sistrs
+---
+- runFlow: login.yaml
+
+# Accueil
+- assertVisible: "Communauté vérifiée.*"
+
+# Les items de la tab bar (React Navigation) ont un accessibilityLabel
+# combiné du style "Amies, tab, 2 of 5", pas juste "Amies" — un tapOn avec
+# le libellé seul échoue (Maestro fait un match complet, pas une recherche
+# de sous-chaîne), d'où le ".*" en suffixe sur chaque tap d'onglet.
+
+# Amies — une demande reçue (Emma) + une amie (Chloé)
+- tapOn: "Amies.*"
+- assertVisible: "Veut devenir ton amie"
+
+# Canaux — 3 canaux suivis par le seed. Le badge "Organisatrice" est
+# affiché en majuscules (text-transform côté style) et combiné avec le
+# reste de la ligne dans l'accessibilité ("ORGANISATRICE, <nom>, ...,
+# Suivi") — d'où le match insensible à la casse et en sous-chaîne.
+- tapOn: "Canaux.*"
+- assertVisible: ".*(?i)organisatrice.*"
+
+# Messages — un message non lu de Chloé
+- tapOn: "Messages.*"
+- assertVisible: ".*Coucou.*"
+
+# Profil — infos de base visibles
+- tapOn: "Profil.*"
+- assertVisible: ".*activité.*"

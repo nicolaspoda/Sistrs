@@ -19,6 +19,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { ScreenContainer } from "../../components/ScreenContainer";
 import { Colors } from "../../constants/colors";
+import { CardShadow, RaisedShadow } from "../../constants/shadows";
 import { useAuth } from "../../lib/auth/AuthProvider";
 import { supabase } from "../../lib/supabase";
 import type { Category, UserStatus } from "../../lib/types";
@@ -118,7 +119,7 @@ export default function ProfileScreen() {
   if (!profile) {
     return (
       <ScreenContainer>
-        <EmptyState title="Profil indisponible" subtitle="Reconnecte-toi pour voir ton profil." />
+        <EmptyState icon="person-circle-outline" title="Profil indisponible" subtitle="Reconnecte-toi pour voir ton profil." />
       </ScreenContainer>
     );
   }
@@ -264,21 +265,27 @@ export default function ProfileScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.avatarSection}>
-          <TouchableOpacity onPress={handlePickAvatar} activeOpacity={0.8}>
-            <Avatar url={profile.avatar_url} name={fullName} size={96} />
-            <View style={styles.avatarEditBadge}>
-              <Text style={styles.avatarEditIcon}>✎</Text>
-            </View>
-          </TouchableOpacity>
+          <View style={styles.avatarHalo}>
+            <TouchableOpacity onPress={handlePickAvatar} activeOpacity={0.8}>
+              <Avatar url={profile.avatar_url} name={fullName} size={96} />
+              <View style={styles.avatarEditBadge}>
+                <Text style={styles.avatarEditIcon}>✎</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
 
           <Text style={styles.name}>{fullName}</Text>
 
-          <View style={styles.statusRow}>
-            <View style={[styles.statusDot, { backgroundColor: statusMeta.dot }]} />
-            <Text style={styles.statusLabel}>{statusMeta.label}</Text>
+          <View style={styles.statsRow}>
+            <View style={styles.statChip}>
+              <View style={[styles.statusDot, { backgroundColor: statusMeta.dot }]} />
+              <Text style={styles.statChipText}>{statusMeta.label}</Text>
+            </View>
+            <View style={styles.statChip}>
+              <Ionicons name="flash" size={13} color={Colors.primary} />
+              <Text style={styles.statChipText}>{profile.activity_count} activité(s)</Text>
+            </View>
           </View>
-
-          <Text style={styles.activityCount}>{profile.activity_count} activité(s)</Text>
         </View>
 
         <View style={styles.card}>
@@ -464,6 +471,15 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 20,
   },
+  avatarHalo: {
+    width: 128,
+    height: 128,
+    borderRadius: 64,
+    backgroundColor: Colors.accentBlue,
+    alignItems: "center",
+    justifyContent: "center",
+    ...RaisedShadow,
+  },
   avatarEditBadge: {
     position: "absolute",
     bottom: 0,
@@ -475,7 +491,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: Colors.background,
+    borderColor: Colors.white,
   },
   avatarEditIcon: {
     color: Colors.white,
@@ -487,34 +503,37 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: Colors.text,
   },
-  statusRow: {
+  statsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+  },
+  statChip: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 6,
+    gap: 6,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    ...CardShadow,
   },
   statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 6,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
   },
-  statusLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: Colors.textMuted,
-  },
-  activityCount: {
-    marginTop: 4,
+  statChipText: {
     fontSize: 13,
-    color: Colors.textMuted,
+    fontWeight: "700",
+    color: Colors.text,
   },
   card: {
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     marginBottom: 16,
+    ...CardShadow,
   },
   sectionHeaderRow: {
     flexDirection: "row",
@@ -522,9 +541,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   editIconButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: Colors.primaryLight,
     alignItems: "center",
     justifyContent: "center",

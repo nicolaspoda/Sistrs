@@ -1,8 +1,9 @@
 import { Link, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { AuthTextField } from "../../components/AuthTextField";
+import { PatternBackground } from "../../components/PatternBackground";
 import { PasswordField } from "../../components/PasswordField";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { Colors } from "../../constants/colors";
@@ -35,11 +36,17 @@ export default function SignInScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <PatternBackground style={styles.flex}>
+      <KeyboardAvoidingView
+        style={styles.keyboardFlex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <Image
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          source={require("../../assets/images/logo.png")}
+          style={styles.logo}
+        />
         <Text style={styles.title}>Sistrs</Text>
         <Text style={styles.subtitle}>Connecte-toi pour retrouver tes sorties entre filles.</Text>
 
@@ -50,6 +57,7 @@ export default function SignInScreen() {
         ) : null}
 
         <AuthTextField
+          testID="input-email"
           label="Email"
           placeholder="ton@email.com"
           keyboardType="email-address"
@@ -58,6 +66,7 @@ export default function SignInScreen() {
           onChangeText={setEmail}
         />
         <PasswordField
+          testID="input-password"
           label="Mot de passe"
           placeholder="••••••••"
           autoComplete="password"
@@ -68,6 +77,7 @@ export default function SignInScreen() {
         {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
 
         <PrimaryButton
+          testID="button-sign-in"
           label="Se connecter"
           onPress={handleSubmit}
           isLoading={isSubmitting}
@@ -80,21 +90,31 @@ export default function SignInScreen() {
             S'inscrire
           </Link>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </PatternBackground>
   );
 }
 
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
-    backgroundColor: Colors.background,
+  },
+  keyboardFlex: {
+    flex: 1,
   },
   container: {
     flexGrow: 1,
     justifyContent: "center",
     paddingHorizontal: 24,
     paddingVertical: 48,
+  },
+  logo: {
+    width: 88,
+    height: 88,
+    borderRadius: 22,
+    alignSelf: "center",
+    marginBottom: 16,
   },
   title: {
     fontSize: 32,

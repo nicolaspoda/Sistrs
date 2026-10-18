@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
+import { PatternBackground } from "../../components/PatternBackground";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { Colors } from "../../constants/colors";
 import { useAuth } from "../../lib/auth/AuthProvider";
@@ -186,7 +187,8 @@ export default function SignUpPreferencesScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <PatternBackground>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Créer un compte</Text>
       <Text style={styles.overline}>ÉTAPE 2 SUR 2</Text>
       <Text style={styles.stepTitle}>Tes préférences</Text>
@@ -198,6 +200,7 @@ export default function SignUpPreferencesScreen() {
           return (
             <TouchableOpacity
               key={bracket}
+              testID={`age-bracket-${bracket}`}
               style={[styles.segment, isSelected && styles.segmentSelected]}
               onPress={() => {
                 setAgeBracket(bracket);
@@ -246,6 +249,7 @@ export default function SignUpPreferencesScreen() {
 
       <Text style={styles.sectionLabel}>Sécurité (Face ID obligatoire)</Text>
       <PrimaryButton
+        testID="button-enable-faceid"
         label={faceIdEnabled ? "Face ID activé ✓" : "Activer Face ID"}
         variant="outline"
         onPress={handleEnableFaceId}
@@ -261,7 +265,11 @@ export default function SignUpPreferencesScreen() {
         vérification Face ID une fois un development build en place.
       */}
       {process.env.EXPO_PUBLIC_ENV !== "production" && !faceIdEnabled ? (
-        <TouchableOpacity onPress={() => setFaceIdEnabled(true)} style={styles.devBypassLink}>
+        <TouchableOpacity
+          testID="link-dev-bypass-faceid"
+          onPress={() => setFaceIdEnabled(true)}
+          style={styles.devBypassLink}
+        >
           <Text style={styles.devBypassLinkText}>
             Mode développeur : passer la vérification Face ID (Expo Go ne la supporte pas)
           </Text>
@@ -271,13 +279,15 @@ export default function SignUpPreferencesScreen() {
       {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
 
       <PrimaryButton
+        testID="button-create-account"
         label="Créer mon compte"
         onPress={handleCreateAccount}
         isLoading={isSubmitting}
         disabled={!faceIdEnabled}
         style={styles.submitButton}
       />
-    </ScrollView>
+      </ScrollView>
+    </PatternBackground>
   );
 }
 
@@ -295,7 +305,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 24,
     paddingVertical: 48,
-    backgroundColor: Colors.background,
   },
   title: {
     fontSize: 26,

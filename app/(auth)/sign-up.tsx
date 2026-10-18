@@ -1,9 +1,12 @@
+import { Asset } from "expo-asset";
+import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import { Link, router } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { AuthTextField } from "../../components/AuthTextField";
+import { PatternBackground } from "../../components/PatternBackground";
 import { DatePickerField } from "../../components/DatePickerField";
 import { PasswordField } from "../../components/PasswordField";
 import { PrimaryButton } from "../../components/PrimaryButton";
@@ -22,6 +25,12 @@ const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
 // sélecteur pour permettre au développeur de tester avec un autre genre.
 const DEV_GENDER_OPTIONS = ["femme", "homme", "autre"];
 const isProduction = process.env.EXPO_PUBLIC_ENV === "production";
+
+// Pièce d'identité de test pour les flows Maestro (E2E) : évite de devoir
+// automatiser le sélecteur de photos natif (peu fiable à piloter par
+// coordonnées). Jamais inclus en production (voir !isProduction ci-dessous).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const DEV_TEST_ID_DOCUMENT = require("../../assets/dev/fake-id-card.png");
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -73,17 +82,51 @@ export default function SignUpScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>(NO_FIELD_ERRORS);
 
-  const handlePickIdDocument = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  // Charge directement la pièce d'identité de test dans le système de
+  // fichiers de l'app (file://...), sans passer par le sélecteur de
+  // photos natif — utilisé uniquement par les flows Maestro.
+  const handleUseDevTestIdDocument = async () => {
+    try {
+      const asset = Asset.fromModule(DEV_TEST_ID_DOCUMENT);
+      await asset.downloadAsync();
+      const destUri = `${FileSystem.cacheDirectory}dev-fake-id-card.png`;
+      await FileSystem.copyAsync({ from: asset.localUri ?? asset.uri, to: destUri });
+      setIdDocumentUri(destUri);
+      setIdCheckWarning(null);
+    } catch {
+      setErrorMessage("Impossible de charger la pièce d'identité de test.");
+    }
+  };
+
+  const handlePickIdDocument = () => {
+    Alert.alert("Pièce d'identité", "Comment veux-tu l'ajouter ?", [
+      { text: "Prendre une photo", onPress: () => pickIdDocumentFrom("camera") },
+      { text: "Choisir depuis la galerie", onPress: () => pickIdDocumentFrom("library") },
+      { text: "Annuler", style: "cancel" },
+    ]);
+  };
+
+  const pickIdDocumentFrom = async (source: "camera" | "library") => {
+    const permission =
+      source === "camera"
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      setErrorMessage("Autorise l'accès à tes photos pour ajouter une pièce d'identité.");
+      setErrorMessage(
+        source === "camera"
+          ? "Autorise l'accès à l'appareil photo pour ajouter une pièce d'identité."
+          : "Autorise l'accès à tes photos pour ajouter une pièce d'identité."
+      );
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-    });
+    const result =
+      source === "camera"
+        ? await ImagePicker.launchCameraAsync({ quality: 0.8 })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.8,
+          });
 
     if (!result.canceled && result.assets.length > 0) {
       // L'upload réel vers Supabase Storage (bucket privé `id-documents`)
@@ -135,8 +178,14 @@ export default function SignUpScreen() {
       try {
         const result = await checkIdDocumentAsync(idDocumentUri, firstName.trim(), lastName.trim(), birthDate.trim());
         if (result.ranOcr && (!result.nameFound || !result.birthDateFound)) {
+          const missing =
+            !result.nameFound && !result.birthDateFound
+              ? "ton nom/prénom et ta date de naissance"
+              : !result.nameFound
+                ? "ton nom/prénom"
+                : "ta date de naissance";
           setIdCheckWarning(
-            "On n'a pas retrouvé ton nom et/ou ta date de naissance sur la pièce fournie. Vérifie la photo, ou appuie encore sur Continuer si c'est bien la bonne (ce n'est qu'un contrôle automatique, pas fiable à 100%)."
+            `On n'a pas retrouvé ${missing} sur la pièce fournie. Vérifie la photo et les informations saisies, ou appuie encore sur Continuer si c'est bien la bonne.`
           );
           return;
         }
@@ -166,13 +215,15 @@ export default function SignUpScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <PatternBackground style={styles.flex}>
+      <KeyboardAvoidingView style={styles.keyboardFlex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Créer un compte</Text>
         <Text style={styles.overline}>ÉTAPE 1 SUR 2</Text>
         <Text style={styles.stepTitle}>Tes informations</Text>
 
         <AuthTextField
+          testID="input-first-name"
           label="Prénom"
           placeholder="Léa"
           autoCapitalize="words"
@@ -182,6 +233,7 @@ export default function SignUpScreen() {
         />
 
         <AuthTextField
+          testID="input-last-name"
           label="Nom"
           placeholder="Martin"
           autoCapitalize="words"
@@ -191,6 +243,7 @@ export default function SignUpScreen() {
         />
 
         <DatePickerField
+          testID="input-birth-date"
           label="Date de naissance"
           value={birthDate}
           onChange={setBirthDate}
@@ -200,6 +253,7 @@ export default function SignUpScreen() {
         />
 
         <AuthTextField
+          testID="input-email"
           label="Email"
           placeholder="ton@email.com"
           keyboardType="email-address"
@@ -210,6 +264,7 @@ export default function SignUpScreen() {
         />
 
         <PasswordField
+          testID="input-password"
           label="Mot de passe"
           placeholder={`${MIN_PASSWORD_LENGTH} caractères minimum`}
           autoComplete="password-new"
@@ -219,6 +274,7 @@ export default function SignUpScreen() {
         />
 
         <PasswordField
+          testID="input-confirm-password"
           label="Confirmer le mot de passe"
           placeholder="Retape ton mot de passe"
           autoComplete="password-new"
@@ -234,6 +290,7 @@ export default function SignUpScreen() {
             return (
               <TouchableOpacity
                 key={option.value}
+                testID={`role-${option.value}`}
                 style={[styles.segment, isSelected && styles.segmentSelected]}
                 onPress={() => setRole(option.value)}
                 activeOpacity={0.85}
@@ -248,6 +305,7 @@ export default function SignUpScreen() {
 
         <Text style={styles.sectionLabel}>Pièce d'identité (obligatoire)</Text>
         <PrimaryButton
+          testID="button-add-id-document"
           label={idDocumentUri ? "Pièce d'identité ajoutée ✓" : "Ajouter une pièce d'identité"}
           variant="outline"
           onPress={handlePickIdDocument}
@@ -258,6 +316,7 @@ export default function SignUpScreen() {
         {idCheckWarning ? <Text style={styles.warning}>{idCheckWarning}</Text> : null}
 
         <PrimaryButton
+          testID="button-continue-step1"
           label={idCheckWarning ? "Continuer quand même" : "Continuer"}
           onPress={handleContinue}
           disabled={!idDocumentUri}
@@ -269,6 +328,9 @@ export default function SignUpScreen() {
           <View style={styles.devSection}>
             <TouchableOpacity onPress={() => setIsDevGenderVisible((prev) => !prev)}>
               <Text style={styles.devLink}>Mode développeur : changer le genre pour un test</Text>
+            </TouchableOpacity>
+            <TouchableOpacity testID="link-dev-use-test-id" onPress={handleUseDevTestIdDocument}>
+              <Text style={styles.devLink}>Mode développeur : utiliser une pièce d'identité de test</Text>
             </TouchableOpacity>
             {isDevGenderVisible ? (
               <View style={styles.devGenderRow}>
@@ -300,15 +362,18 @@ export default function SignUpScreen() {
             Se connecter
           </Link>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </PatternBackground>
   );
 }
 
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
-    backgroundColor: Colors.background,
+  },
+  keyboardFlex: {
+    flex: 1,
   },
   container: {
     flexGrow: 1,

@@ -13,6 +13,7 @@ import { Avatar } from "../../components/Avatar";
 import { EmptyState } from "../../components/EmptyState";
 import { ScreenContainer } from "../../components/ScreenContainer";
 import { Colors } from "../../constants/colors";
+import { CardShadow } from "../../constants/shadows";
 import { useAuth } from "../../lib/auth/AuthProvider";
 import { supabase } from "../../lib/supabase";
 import type { Profile } from "../../lib/types";
@@ -162,6 +163,7 @@ export default function MessagesScreen() {
     <ScreenContainer>
       {conversations.length === 0 ? (
         <EmptyState
+          icon="chatbubble-ellipses-outline"
           title="Aucune conversation"
           subtitle="Écris à une amie depuis son profil pour démarrer une conversation."
         />
@@ -216,9 +218,11 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    backgroundColor: Colors.surface,
+    borderRadius: 18,
+    padding: 12,
+    marginBottom: 10,
+    ...CardShadow,
   },
   avatarWrapper: {
     position: "relative",

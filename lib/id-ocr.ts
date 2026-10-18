@@ -1,4 +1,4 @@
-import TextRecognition from "@react-native-ml-kit/text-recognition";
+import { recognizeTextAsync } from "../modules/vision-text-recognition";
 
 function normalize(text: string): string {
   return text
@@ -19,6 +19,23 @@ function formatDateVariants(isoDate: string): string[] {
   ];
 }
 
+/**
+ * Variantes de la date en "chiffres seulement" (JJMMAAAA et JJMMAA), pour
+ * matcher même quand l'OCR déforme les séparateurs (point manquant,
+ * remplacé par un espace, etc. — ex. "11.12 2003" au lieu de "11.12.2003").
+ * On compare alors des suites de chiffres plutôt que des chaînes exactes.
+ */
+function digitsOnlyDateVariants(isoDate: string): string[] {
+  const [year, month, day] = isoDate.split("-");
+  if (!year || !month || !day) return [];
+  const shortYear = year.slice(-2);
+  return [`${day}${month}${year}`, `${day}${month}${shortYear}`, `${year}${month}${day}`];
+}
+
+function digitsOnly(text: string): string {
+  return text.replace(/[^0-9]/g, "");
+}
+
 export type IdentityCheckResult = {
   ranOcr: boolean;
   nameFound: boolean;
@@ -28,8 +45,8 @@ export type IdentityCheckResult = {
 /**
  * Contrôle de cohérence GRATUIT et volontairement basique, pas une vraie
  * vérification d'identité (voir CLAUDE.md § Vérification d'identité) : de
- * l'OCR sur la photo du document, entièrement sur l'appareil (ML Kit, aucun
- * coût, aucun serveur tiers), pour voir si le nom/prénom et la date de
+ * l'OCR sur la photo du document, entièrement sur l'appareil (framework Vision
+ * d'Apple, aucun coût, aucun serveur tiers), pour voir si le nom/prénom et la date de
  * naissance saisis à l'inscription apparaissent dans le texte reconnu.
  *
  * Pas de lecture de MRZ, pas de comparaison faciale, pas de garantie contre
@@ -45,14 +62,24 @@ export async function checkIdDocumentAsync(
   birthDateIso: string
 ): Promise<IdentityCheckResult> {
   try {
-    const result = await TextRecognition.recognize(localUri);
-    const normalizedText = normalize(result.text ?? "");
+    const recognizedText = await recognizeTextAsync(localUri);
+    const normalizedText = normalize(recognizedText ?? "");
 
     const nameFound =
       normalizedText.includes(normalize(firstName)) && normalizedText.includes(normalize(lastName));
 
     const dateVariants = formatDateVariants(birthDateIso);
-    const birthDateFound = dateVariants.some((variant) => normalizedText.includes(variant));
+    const normalizedDigits = digitsOnly(normalizedText);
+    const birthDateFound =
+      dateVariants.some((variant) => normalizedText.includes(variant)) ||
+      digitsOnlyDateVariants(birthDateIso).some((variant) => normalizedDigits.includes(variant));
+
+    // TEMP DEBUG (à retirer une fois le souci de reconnaissance diagnostiqué) :
+    // affiche le texte brut détecté par l'OCR pour comprendre les faux négatifs.
+    console.log("[id-ocr] texte brut détecté :", JSON.stringify(recognizedText));
+    console.log("[id-ocr] texte normalisé :", normalizedText);
+    console.log("[id-ocr] prénom/nom recherchés :", normalize(firstName), "/", normalize(lastName), "-> trouvés:", nameFound);
+    console.log("[id-ocr] variantes de date recherchées :", dateVariants, "-> trouvée:", birthDateFound);
 
     return { ranOcr: true, nameFound, birthDateFound };
   } catch (error) {

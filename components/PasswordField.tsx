@@ -12,7 +12,7 @@ type PasswordFieldProps = Omit<TextInputProps, "secureTextEntry"> & {
 // Champ mot de passe réutilisable avec bouton oeil pour afficher/masquer la
 // saisie. Basé sur le même style que AuthTextField (composants distincts
 // pour que TextInputProps de AuthTextField reste sans le toggle).
-export function PasswordField({ label, style, hasError = false, ...inputProps }: PasswordFieldProps) {
+export function PasswordField({ label, style, hasError = false, testID, ...inputProps }: PasswordFieldProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   return (
@@ -20,6 +20,7 @@ export function PasswordField({ label, style, hasError = false, ...inputProps }:
       <Text style={styles.label}>{label}</Text>
       <View style={[styles.inputRow, hasError && styles.inputRowError]}>
         <TextInput
+          testID={testID}
           style={[styles.input, style]}
           placeholderTextColor={Colors.textMuted}
           autoCapitalize="none"
@@ -27,6 +28,7 @@ export function PasswordField({ label, style, hasError = false, ...inputProps }:
           {...inputProps}
         />
         <TouchableOpacity
+          testID={testID ? `${testID}-toggle-visibility` : undefined}
           style={styles.eyeButton}
           onPress={() => setIsVisible((prev) => !prev)}
           activeOpacity={0.7}

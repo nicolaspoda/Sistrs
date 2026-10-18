@@ -22,6 +22,7 @@ type DatePickerFieldProps = {
   maximumDate?: Date;
   /** Date pré-sélectionnée à l'ouverture quand `value` est vide. */
   defaultDate?: Date;
+  testID?: string;
 };
 
 function pad(n: number): string {
@@ -92,6 +93,7 @@ export function DatePickerField({
   minimumDate,
   maximumDate,
   defaultDate,
+  testID,
 }: DatePickerFieldProps) {
   const fallback = defaultDate ?? fallbackDefaultDate();
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -153,6 +155,7 @@ export function DatePickerField({
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
       <TouchableOpacity
+        testID={testID}
         style={[styles.input, hasError && styles.inputError]}
         onPress={openModal}
         activeOpacity={0.7}

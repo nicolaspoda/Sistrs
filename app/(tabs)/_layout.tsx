@@ -1,7 +1,6 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 
-import { TabIconWithDot } from "../../components/TabIconWithDot";
+import { TabBarIcon } from "../../components/TabBarIcon";
 import { Colors } from "../../constants/colors";
 import { useTabBadges } from "../../lib/useTabBadges";
 
@@ -13,23 +12,31 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: Colors.primary,
+        tabBarInactiveTintColor: Colors.textMuted,
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "700" },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: "Accueil",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabBarIcon name="home" color={color} size={size} focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
         name="friends"
         options={{
-          title: "Amis",
-          tabBarIcon: ({ color, size }) => (
-            <TabIconWithDot name="people" color={color} size={size} showDot={hasPendingFriendRequests} />
+          title: "Amies",
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabBarIcon
+              name="people"
+              color={color}
+              size={size}
+              focused={focused}
+              showDot={hasPendingFriendRequests}
+            />
           ),
         }}
       />
@@ -37,8 +44,14 @@ export default function TabsLayout() {
         name="channels"
         options={{
           title: "Canaux",
-          tabBarIcon: ({ color, size }) => (
-            <TabIconWithDot name="megaphone" color={color} size={size} showDot={hasNewChannelContent} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabBarIcon
+              name="megaphone"
+              color={color}
+              size={size}
+              focused={focused}
+              showDot={hasNewChannelContent}
+            />
           ),
         }}
       />
@@ -46,8 +59,14 @@ export default function TabsLayout() {
         name="messages"
         options={{
           title: "Messages",
-          tabBarIcon: ({ color, size }) => (
-            <TabIconWithDot name="chatbubble" color={color} size={size} showDot={hasUnreadMessages} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabBarIcon
+              name="chatbubble"
+              color={color}
+              size={size}
+              focused={focused}
+              showDot={hasUnreadMessages}
+            />
           ),
         }}
       />
@@ -55,8 +74,8 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: "Profil",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabBarIcon name="person" color={color} size={size} focused={focused} />
           ),
         }}
       />
