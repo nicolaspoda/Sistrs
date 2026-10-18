@@ -5,7 +5,7 @@
 > entier avant de reprendre le travail, surtout après un changement de
 > compte/session Claude Code.
 
-Dernière mise à jour : 2026-09-28
+Dernière mise à jour : 2026-10-19
 
 ## Fait
 
@@ -27,8 +27,9 @@ Dernière mise à jour : 2026-09-28
   Couvre : profiles, categories, channels, events, event_registrations,
   event_shopping_list_items, event_reviews, channel_posts + likes, polls +
   options + votes, friendships, conversations + messages, notifications.
-  **Le champ `gender` sur `profiles` n'a pas encore été ajouté au schéma —
-  à faire en premier avant de coder l'inscription.**
+  **Correction (2026-10-19) : le champ `gender` était en fait déjà présent
+  dans `supabase/schema.sql` (`profiles.gender text not null`) — la note
+  disant qu'il manquait était obsolète.**
 - **Maquette Figma** : fichier créé ("Rosie - App événements entre filles",
   file_key `NVfRLxNqqJjL9DfbP9InpF`). Écrans réalisés et vérifiés visuellement :
   - Inscription 1 — Informations (infos perso, upload pièce d'identité, choix participante/organisatrice)
@@ -51,23 +52,35 @@ Dernière mise à jour : 2026-09-28
   création. Cloné et attaché à la session Claude Code.
 - **Environnement dev local** : Claude Code CLI installé avec succès sur le
   Mac de l'utilisateur après résolution d'une erreur `ENOTEMPTY` npm.
+- **Projet Supabase créé et schéma appliqué (2026-10-19)** : projet `sistrs`
+  (ref `grwwoigglxuqkgzvijky`, région `eu-west-1`, org "nicolaspoda's Org").
+  `supabase/schema.sql` appliqué intégralement en migration (`initial_schema`,
+  avec cast explicite `::user_status` sur la colonne générée `profiles.status`
+  pour satisfaire Postgres). RLS pas encore activé (volontaire à ce stade,
+  voir advisories).
+- **Tâche planifiée de développement continu créée** : s'exécute environ
+  toutes les 6h, lit ce fichier et `CLAUDE.md`, prend une tâche de la liste
+  ci-dessous, code, teste, ouvre une PR, met à jour ce fichier.
 
 ## En cours / à faire ensuite
 
-1. Ajouter le champ `gender` à `profiles` dans `supabase/schema.sql`
-   (actuellement absent — noté comme urgent).
-2. Scaffolding du projet Expo dans le repo `sistrs` (structure de dossiers,
+1. Scaffolding du projet Expo dans le repo `sistrs` (structure de dossiers,
    config, dépendances de base).
-3. Mettre en place le projet Supabase (créer le projet, appliquer le
-   schéma, configurer Auth, Storage, RLS — aucune policy RLS écrite pour
-   l'instant, le schéma actuel n'en contient volontairement pas pour
-   rester lisible).
+2. Configurer Auth (providers, templates email) et Storage (buckets pour
+   avatars, bannières, pièces d'identité, images d'événements) sur le
+   projet Supabase.
+3. Écrire les policies RLS Supabase une fois les écrans/flows principaux
+   clairs (le schéma actuel n'en contient volontairement pas pour rester
+   lisible au départ — voir advisories de sécurité Supabase, 20 tables
+   publiques sans RLS, attendu à ce stade).
 4. Terminer les écrans manquants de la maquette Figma (liste ci-dessus) —
    soit en reprenant Figma si le quota est repassé, soit via un prototype
    cliquable alternatif (option évoquée mais pas retenue formellement).
 5. Décider du SDK de carte (Mapbox vs Google Maps) — pas encore tranché.
-6. Écrire les policies RLS Supabase une fois les écrans/flows principaux
-   clairs.
+
+## Décisions en attente de l'utilisateur
+
+- SDK de carte : Mapbox vs react-native-maps/Google Maps — pas tranché.
 
 ## Décisions à ne pas reproposer (déjà tranchées)
 
