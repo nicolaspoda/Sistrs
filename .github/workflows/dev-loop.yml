@@ -1,0 +1,114 @@
+name: Sistrs dev loop (branche A)
+
+# Fait tourner le même travail de dev que la tâche planifiée "branche A"
+# (écrire le prochain item du backlog, mettre à jour PROGRESS.md, commit
+# direct sur main), mais facturé via une clé API Anthropic (secret
+# ANTHROPIC_API_KEY) plutôt que via l'abonnement Claude Pro — pour que ce
+# travail ne consomme jamais le quota Pro de l'utilisateur. La branche B
+# (tests E2E Maestro sur Simulator) reste sur la tâche planifiée côté Mac,
+# car ce runner GitHub n'a pas accès au Mac/Simulator.
+#
+# Prérequis unique : un secret de dépôt ANTHROPIC_API_KEY (clé créée sur
+# https://platform.claude.com), facturée à l'usage, séparément de
+# l'abonnement Claude.ai.
+
+on:
+  schedule:
+    # Toutes les heures, décalé de la minute pile pour éviter la
+    # congestion au top de l'heure.
+    - cron: "17 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sistrs-dev-loop
+  cancel-in-progress: false
+
+jobs:
+  dev-loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Pas de github_token custom : le token GITHUB_TOKEN par défaut
+          # (contents: write ci-dessus) suffit pour le `git push` fait en
+          # Bash par Claude — pas besoin d'installer la Claude GitHub App
+          # puisqu'on ne crée ni PR ni commentaire ici.
+          claude_args: |
+            --model claude-sonnet-5
+            --max-turns 40
+            --allowedTools "Bash,Read,Edit,Write,Glob,Grep"
+          prompt: |
+            Tu travailles sur le dépôt Sistrs (app mobile React Native/Expo +
+            Supabase, réservée aux femmes pour organiser des sorties). Le
+            dépôt est déjà checkouté dans le répertoire de travail courant,
+            sur `main`, à jour.
+
+            Ce run n'a PAS accès à un Mac/Simulator/Metro — ne tente jamais
+            d'étapes qui en auraient besoin (tests E2E Maestro réels). Ce
+            travail-là reste fait par une tâche séparée qui tourne sur le
+            Mac de l'utilisateur.
+
+            ÉTAPES :
+
+            1. Lis intégralement CLAUDE.md et PROGRESS.md à la racine AVANT
+               toute action — ce sont les règles du projet et l'état
+               d'avancement réel. Porte une attention particulière aux
+               sections "Pipeline dev → test E2E → fix en boucle" et
+               "En cours / à faire ensuite".
+            2. Respecte strictement les conventions de CLAUDE.md, en
+               particulier :
+               - Avant tout commit : `git config user.name "nicolaspoda"`
+                 et `git config user.email "nicolaspoda31@gmail.com"` en
+                 local dans ce clone.
+               - JAMAIS de ligne "Co-Authored-By: Claude" ou toute mention
+                 de Claude dans les commits.
+               - Messages de commit en anglais, Conventional Commits
+                 (`type(scope): description`).
+               - Workflow sans branche ni PR pour ce pipeline (décision du
+                 2026-10-19) : tout commit va DIRECTEMENT sur `main`. Ne
+                 crée jamais de branche, n'ouvre jamais de PR.
+               - JAMAIS de déploiement production (pas de soumission App
+                 Store/Play Store, pas de `eas submit`) sans validation
+                 humaine explicite.
+            3. S'il n'y a AUCUNE tâche de dev non bloquée en attente (dans
+               "En cours / à faire ensuite" OU dans la liste "Backlog flows
+               Maestro manquants" OU "Backlog prêt pour le store" — mais
+               jamais les tâches marquées "décision en attente de
+               l'utilisateur" ou nécessitant un compte développeur payant,
+               celles-là restent notées, jamais exécutées), ne fais rien :
+               dis-le simplement dans ta réponse finale (pas un échec).
+            4. Sinon, prends la tâche la plus urgente/la première non
+               bloquée. Une seule tâche par run.
+               - Écrire un nouveau flow Maestro (.yaml) compte comme une
+                 tâche de dev normale (pas besoin du Mac pour l'écrire,
+                 juste pour le faire tourner ensuite — ça sera fait par
+                 l'autre pipeline). Si tu en écris un, ajoute-le aussi à
+                 `scripts/run-maestro-suite.sh`.
+               - Code, puis écris/lance toute vérification statique
+                 disponible dans ce runner (pas de Simulator ici).
+               - Mets à jour PROGRESS.md dans le même lot (déplace la
+                 tâche vers "fait", ajoute la date et toute
+                 décision/bug trouvé — précise que c'est ce pipeline
+                 GitHub Actions, pas la tâche Mac, qui a fait ce run).
+               - `git pull --rebase origin main` juste avant de pousser (un
+                 autre run a pu pousser entretemps) ; en cas de conflit sur
+                 `PROGRESS.md` ou `scripts/run-maestro-suite.sh`
+                 uniquement (deux ajouts côte à côte), résous en gardant
+                 les deux côtés ; sur tout autre fichier, abandonne le
+                 rebase (`git rebase --abort`), note le blocage dans
+                 PROGRESS.md sous "Décisions en attente de l'utilisateur"
+                 et termine proprement sans pousser.
+               - Commit directement sur `main`, push.
+            5. Termine toujours par un résumé court dans ta réponse finale
+               (visible dans les logs du run) : ce qui a été fait (ou
+               pourquoi rien n'a été fait), SHA poussé le cas échéant,
+               prochaine tâche logique.
