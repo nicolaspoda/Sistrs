@@ -8,7 +8,9 @@
 # Optionnel : TEST_PASSWORD=le-mot-de-passe-du-seed ./scripts/run-maestro-suite.sh
 #   (mot de passe du compte de test.participante@sistrs.app, voir
 #   supabase/dev-seed-test-participant.sql — sans ça, login.yaml et
-#   smoke_navigation.yaml sont sautés, seul signup-participant.yaml tourne)
+#   smoke_navigation.yaml sont sautés ; signup-participant.yaml et
+#   event-create-and-register.yaml tournent dans tous les cas, chacun
+#   avec ses propres comptes générés à la volée)
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -19,6 +21,16 @@ mkdir -p "$REPORT_DIR"
 
 SIGNUP_EMAIL="test.e2e.$(date +%s)@example.com"
 SIGNUP_PASSWORD="motdepasse123"
+
+# Identifiants dédiés à event-create-and-register.yaml (deux comptes,
+# organisatrice + participante) — un suffixe "org"/"part" pour rester
+# unique même si ce script tourne deux fois dans la même seconde que les
+# variables ci-dessus.
+EVENT_ORGANIZER_EMAIL="test.e2e.org.$(date +%s)@example.com"
+EVENT_ORGANIZER_PASSWORD="motdepasse123"
+EVENT_PARTICIPANT_EMAIL="test.e2e.part.$(date +%s)@example.com"
+EVENT_PARTICIPANT_PASSWORD="motdepasse123"
+EVENT_TITLE="Soiree karaoke E2E $(date +%s)"
 
 {
   echo "=== Run Maestro $TIMESTAMP ==="
@@ -47,6 +59,13 @@ run_flow() {
 run_flow "signup-participant.yaml" \
   --env SIGNUP_EMAIL="$SIGNUP_EMAIL" \
   --env SIGNUP_PASSWORD="$SIGNUP_PASSWORD"
+
+run_flow "event-create-and-register.yaml" \
+  --env ORGANIZER_EMAIL="$EVENT_ORGANIZER_EMAIL" \
+  --env ORGANIZER_PASSWORD="$EVENT_ORGANIZER_PASSWORD" \
+  --env PARTICIPANT_EMAIL="$EVENT_PARTICIPANT_EMAIL" \
+  --env PARTICIPANT_PASSWORD="$EVENT_PARTICIPANT_PASSWORD" \
+  --env EVENT_TITLE="$EVENT_TITLE"
 
 if [ -n "${TEST_PASSWORD:-}" ]; then
   run_flow "login.yaml" \
