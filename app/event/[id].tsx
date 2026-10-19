@@ -559,7 +559,12 @@ export default function EventDetailScreen() {
               </Text>
               <View style={styles.starPicker}>
                 {[1, 2, 3, 4, 5].map((value) => (
-                  <TouchableOpacity key={value} onPress={() => setMyRating(value)} activeOpacity={0.7}>
+                  <TouchableOpacity
+                    key={value}
+                    testID={`button-rating-star-${value}`}
+                    onPress={() => setMyRating(value)}
+                    activeOpacity={0.7}
+                  >
                     <Ionicons
                       name={value <= myRating ? "star" : "star-outline"}
                       size={28}
@@ -570,6 +575,7 @@ export default function EventDetailScreen() {
                 ))}
               </View>
               <TextInput
+                testID="input-review-comment"
                 style={styles.reviewInput}
                 placeholder="Un commentaire ? (optionnel)"
                 placeholderTextColor={Colors.textMuted}
@@ -580,6 +586,7 @@ export default function EventDetailScreen() {
               />
               {reviewError ? <Text style={styles.error}>{reviewError}</Text> : null}
               <PrimaryButton
+                testID="button-submit-review"
                 label="Envoyer mon avis"
                 onPress={handleSubmitReview}
                 isLoading={isSubmittingReview}

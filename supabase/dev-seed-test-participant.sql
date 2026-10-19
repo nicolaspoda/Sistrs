@@ -12,8 +12,11 @@
 -- Remplit : abonnement aux 3 canaux de démo, une demande d'amie reçue, une
 -- amie déjà acceptée, une demande envoyée par le compte de test et acceptée
 -- en retour, un message non lu, une inscription confirmée à un événement à
--- venir, et les notifications correspondantes (+ les types sans trigger
--- automatique) — pour tester tout le parcours participante dès la connexion.
+-- venir, une inscription confirmée à un événement déjà TERMINÉ (nécessaire
+-- pour tester le dépôt d'un avis, voir .maestro/event-review.yaml — aucun
+-- autre événement seedé n'est jamais dans le passé), et les notifications
+-- correspondantes (+ les types sans trigger automatique) — pour tester tout
+-- le parcours participante dès la connexion.
 --
 -- Rejouable sans erreur (chaque insert est protégé par on conflict do
 -- nothing ou une vérification d'existence).
@@ -101,6 +104,43 @@ begin
     values (v_event_id, v_me, 'confirmed')
     on conflict (event_id, participant_id) do nothing;
   end if;
+
+  -- 6b) Événement déjà terminé + inscription confirmée du compte de test,
+  --     pour pouvoir tester le dépôt d'un avis (event-review.yaml) :
+  --     `canReview` dans app/event/[id].tsx exige `isPastEvent && isRegistered`
+  --     (isPastEvent = now() >= end_at ?? start_at), et aucun événement créé
+  --     via le formulaire de l'app (dates par défaut toujours dans le futur)
+  --     ni ceux de seed.sql (volontairement "à venir") ne peut jamais
+  --     remplir cette condition — un événement passé doit donc être inséré
+  --     directement ici. ID fixe pour rester idempotent entre deux lancements
+  --     de ce script.
+  insert into events (
+    id, organizer_id, channel_id, category_id, title, description, cover_image_url,
+    start_at, end_at, meeting_point, meeting_lat, meeting_lng, max_participants,
+    registration_deadline, status
+  )
+  select
+    'e0000000-0000-0000-0000-000000000099'::uuid,
+    v_organizers[1],
+    c.id,
+    cat.id,
+    'Soirée karaoké (terminée)',
+    'Événement déjà passé, utilisé uniquement pour tester le dépôt d''un avis.',
+    'https://picsum.photos/seed/sistrs-event-past-review/800/500',
+    now() - interval '3 days',
+    now() - interval '1 day',
+    'Studio Karaoké, Bastille, Paris',
+    48.8532::double precision, 2.3692::double precision,
+    12,
+    now() - interval '5 days',
+    'published'
+  from channels c, categories cat
+  where c.organizer_id = v_organizers[1] and cat.name = 'Karaoké'
+  on conflict (id) do nothing;
+
+  insert into event_registrations (event_id, participant_id, status)
+  values ('e0000000-0000-0000-0000-000000000099'::uuid, v_me, 'confirmed')
+  on conflict (event_id, participant_id) do nothing;
 
   -- 7) Notifications manuelles pour les types qui n'ont pas de trigger
   --    automatique dans le code actuel (juste pour voir leur rendu dans
