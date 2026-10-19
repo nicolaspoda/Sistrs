@@ -418,6 +418,7 @@ export default function ProfileScreen() {
         </View>
 
         <PrimaryButton
+          testID="button-sign-out"
           label="Se déconnecter"
           variant="outline"
           onPress={handleSignOut}

@@ -5,8 +5,66 @@
 > entier avant de reprendre le travail, surtout après un changement de
 > compte/session Claude Code.
 
-Dernière mise à jour : 2026-10-19 (session : premier run du pipeline autonome
-— flow Maestro signup-organizer ajouté)
+Dernière mise à jour : 2026-10-19 (session : flows Maestro signup-organizer
+et event-create-and-register ajoutés, bug des dates par défaut de création
+d'événement corrigé)
+
+## Fait (session pipeline autonome — 2e run réel)
+
+- **`.maestro/event-create-and-register.yaml` écrit** (item 2 du backlog
+  "Flows Maestro manquants" ci-dessous, à la suite du run précédent qui a
+  traité l'item 1 — voir PR #2, toujours ouverte au moment d'écrire ceci,
+  pas encore mergée). Parcours complet : une organisatrice crée un compte,
+  crée un événement (titre/description/catégorie/lieu/dates par défaut/
+  2 places max), ajoute un article à sa liste de courses, se déconnecte ;
+  une participante crée un compte, découvre l'événement dans le fil et s'y
+  inscrit (pas de lien "bypass Face ID" nécessaire ici contrairement à
+  l'inscription — `handleRegister` dans `app/event/[id].tsx` continue déjà
+  tout seul si `authenticateAsync()` échoue hors production). Vérifie que
+  le compteur de places passe de "2 places restantes sur 2" à "1 place
+  restante sur 2" après l'inscription, et que l'article de liste de
+  courses apparaît bien. Ajouté à `scripts/run-maestro-suite.sh` (deux
+  comptes générés à la volée, indépendants des autres flows).
+  **Testé statiquement seulement** (comme le run précédent) : le fichier
+  YAML parse comme deux documents valides (`pyyaml`), et le script a été
+  dry-runné avec un faux binaire `maestro` pour vérifier le câblage
+  (variables d'env distinctes pour l'organisatrice et la participante) —
+  pas d'exécution réelle sur Simulator, voir le point suivant.
+- **Bug trouvé et corrigé en écrivant ce flow** : dans
+  `app/event/create.tsx`, `defaultStartDate()` (demain 19h) et
+  `defaultDeadlineDate()` (après-demain 19h) étaient inversées par rapport
+  à leur usage — la date limite d'inscription par défaut tombait donc
+  *après* le début de l'événement au lieu d'au moins 24h avant, ce qui
+  faisait échouer la validation côté client ("La date limite d'inscription
+  doit être au moins 24h avant le début.") à chaque création d'événement
+  où une organisatrice acceptait les deux dates pré-sélectionnées sans les
+  changer manuellement — ce qui est précisément ce que fait (et doit
+  pouvoir faire) un flow Maestro, qui ne pilote pas le calendrier natif
+  par coordonnées. Corrigé en échangeant les décalages de jours (début =
+  après-demain, date limite = demain), ce qui respecte l'écart d'exactement
+  24h exigé par la contrainte SQL `registration_deadline <= start_at - 24h`
+  (vérifié : la comparaison de `handleSubmit` utilise un `>` strict, donc
+  une égalité à 24h passe). **Bug réel, pas seulement un problème de test**
+  — à signaler/vérifier manuellement sur le Mac si l'utilisatrice avait
+  déjà rencontré cette erreur sans comprendre pourquoi.
+- **TestID ajoutés** (nécessaires pour que Maestro puisse cibler les
+  éléments de façon fiable, sur le même principe que les écrans
+  d'inscription) : `app/event/create.tsx` (`input-event-title`,
+  `input-event-description`, `date-picker-event-start`,
+  `input-event-meeting-point`, `input-event-max-participants`,
+  `date-picker-event-deadline`, `button-publish-event`),
+  `app/(tabs)/index.tsx` (`button-create-event` sur le bouton "+"),
+  `app/event/[id].tsx` (`button-register-event`,
+  `button-cancel-registration`, `input-add-shopping-item`,
+  `button-add-shopping-item`), `app/(tabs)/profile.tsx`
+  (`button-sign-out`). Aucun de ces écrans n'avait de testID avant cette
+  session — seuls les écrans d'authentification en avaient.
+- **Mac joignable mais toujours aucun dossier connecté à cette session**
+  (comme au run précédent) : `get_device_info` répond, mais
+  `connectedFolders` est vide. Branche B (test E2E réel sur Simulator)
+  donc non tentée à nouveau ce run, pour la même raison qu'au run
+  précédent — pas de changement côté utilisateur depuis. Le marqueur
+  "Dernier run E2E vert" reste donc inchangé.
 
 ## Fait (session pipeline autonome — 1er run réel)
 
@@ -343,9 +401,12 @@ lancer localement à la fin de cette section.
      "Fait (session pipeline autonome — 1er run réel)" plus haut) — écrit
      et câblé dans le script, pas encore exécuté pour de vrai sur
      Simulator (Mac non connecté à ce run, voir plus haut).
-  2. `event-create-and-register.yaml` — création d'événement
-     (organisatrice) + découverte/inscription réelle (participante,
-     Face ID dev bypass) + vérif liste de courses/places restantes.
+  2. ~~`event-create-and-register.yaml`~~ **fait le 2026-10-19** (voir
+     section "Fait (session pipeline autonome — 2e run réel)" plus haut) —
+     écrit et câblé dans le script, pas encore exécuté pour de vrai sur
+     Simulator (Mac non connecté à ce run non plus). A aussi permis de
+     trouver et corriger un vrai bug (dates par défaut de création
+     d'événement inversées, voir plus haut).
   3. `friend-request-flow.yaml` — envoi réel d'une demande d'amie (pas
      juste lecture d'une demande seedée) + acceptation côté second compte.
   4. `messaging-send.yaml` — envoi réel d'un message dans une conversation

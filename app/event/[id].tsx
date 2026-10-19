@@ -442,6 +442,7 @@ export default function EventDetailScreen() {
             <View style={styles.registeredBlock}>
               <Text style={styles.registeredBadge}>Inscrite ✓</Text>
               <PrimaryButton
+                testID="button-cancel-registration"
                 label="Annuler mon inscription"
                 variant="outline"
                 onPress={handleCancelRegistration}
@@ -451,6 +452,7 @@ export default function EventDetailScreen() {
             </View>
           ) : !isFull && !deadlinePassed ? (
             <PrimaryButton
+              testID="button-register-event"
               label="S'inscrire"
               onPress={handleRegister}
               isLoading={isRegistering}
@@ -500,6 +502,7 @@ export default function EventDetailScreen() {
 
             <View style={styles.addItemRow}>
               <TextInput
+                testID="input-add-shopping-item"
                 style={styles.addItemInput}
                 placeholder="Ajouter un article"
                 placeholderTextColor={Colors.textMuted}
@@ -508,6 +511,7 @@ export default function EventDetailScreen() {
                 onSubmitEditing={handleAddShoppingItem}
               />
               <TouchableOpacity
+                testID="button-add-shopping-item"
                 style={styles.addItemButton}
                 onPress={handleAddShoppingItem}
                 disabled={isAddingItem || !newItemLabel.trim()}
