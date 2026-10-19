@@ -46,6 +46,15 @@ FRIEND_REQUEST_FRIEND_PASSWORD="motdepasse123"
 FRIEND_REQUEST_REQUESTER_EMAIL="test.e2e.requester.$(date +%s)@example.com"
 FRIEND_REQUEST_REQUESTER_PASSWORD="motdepasse123"
 
+# Identifiants dédiés à decline-friend-request.yaml (deux comptes, future
+# "refuseuse" + demandeuse) — un suffixe "decline.friend"/"decline.requester"
+# pour rester unique même si ce script tourne deux fois dans la même
+# seconde que les variables ci-dessus.
+DECLINE_FRIEND_EMAIL="test.e2e.decline.friend.$(date +%s)@example.com"
+DECLINE_FRIEND_PASSWORD="motdepasse123"
+DECLINE_REQUESTER_EMAIL="test.e2e.decline.requester.$(date +%s)@example.com"
+DECLINE_REQUESTER_PASSWORD="motdepasse123"
+
 # Identifiants dédiés à messaging-send.yaml (deux comptes, destinataire +
 # expéditrice) — un suffixe "receiver"/"sender" pour rester unique même si
 # ce script tourne deux fois dans la même seconde que les variables
@@ -149,6 +158,12 @@ run_flow "friend-request-flow.yaml" \
   --env FRIEND_PASSWORD="$FRIEND_REQUEST_FRIEND_PASSWORD" \
   --env REQUESTER_EMAIL="$FRIEND_REQUEST_REQUESTER_EMAIL" \
   --env REQUESTER_PASSWORD="$FRIEND_REQUEST_REQUESTER_PASSWORD"
+
+run_flow "decline-friend-request.yaml" \
+  --env FRIEND_EMAIL="$DECLINE_FRIEND_EMAIL" \
+  --env FRIEND_PASSWORD="$DECLINE_FRIEND_PASSWORD" \
+  --env REQUESTER_EMAIL="$DECLINE_REQUESTER_EMAIL" \
+  --env REQUESTER_PASSWORD="$DECLINE_REQUESTER_PASSWORD"
 
 run_flow "messaging-send.yaml" \
   --env RECEIVER_EMAIL="$MESSAGING_RECEIVER_EMAIL" \

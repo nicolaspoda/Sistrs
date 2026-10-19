@@ -1,0 +1,295 @@
+# Parcours de refus d'une demande d'amitié — flow non testé jusqu'ici
+# (friend-request-flow.yaml ne couvre que l'acceptation). Demande séparée
+# de l'utilisateur, hors backlog "Flows Maestro manquants".
+#
+# Deux comptes participantes sont créés dans ce flow :
+#  - "Chloé Fontaine" (FRIEND_*) : créée en premier, jamais connectée avant
+#    la fin du flow — juste là pour être trouvable par la recherche, puis
+#    pour recevoir et REFUSER la demande.
+#  - "Inès Marchand" (REQUESTER_*) : connectée juste après sa création,
+#    recherche "Chloé Fontaine" dans l'onglet Amies > Trouver, envoie la
+#    demande, puis se déconnecte.
+# On reste ensuite connectée en tant que Chloé pour refuser la demande
+# reçue (bouton `button-decline-friend-request`), puis on vérifie que la
+# demande a disparu de l'onglet "Demandes" et qu'aucune des deux ne
+# devient amie de l'autre : côté Chloé (onglet "Mes amies" vide) et côté
+# Inès (reconnexion, onglet "Mes amies" vide également).
+#
+# Noms de famille différents de ceux de friend-request-flow.yaml
+# ("Rousseau"/"Girard") pour que la recherche par nom de famille ne
+# remonte jamais un profil créé par l'autre flow lors d'un run partagé.
+#
+# `handleDecline` dans app/(tabs)/friends.tsx fait un DELETE direct de la
+# ligne `friendships` (pas un simple changement de statut) — refuser une
+# demande ne laisse donc aucune trace exploitable par l'une ou l'autre des
+# deux participantes, ce qui est exactement ce que ce flow vérifie.
+#
+# Usage (emails uniques à chaque run pour éviter "compte déjà existant") :
+#   maestro test \
+#     --env FRIEND_EMAIL=test.e2e.decline.friend.$(date +%s)@example.com \
+#     --env FRIEND_PASSWORD=motdepasse123 \
+#     --env REQUESTER_EMAIL=test.e2e.decline.requester.$(date +%s)@example.com \
+#     --env REQUESTER_PASSWORD=motdepasse123 \
+#     .maestro/decline-friend-request.yaml
+#
+# Prérequis : identiques aux autres flows de signup — pellicule du Simulator
+# avec au moins une photo, permission Photos déjà accordée à l'app (les
+# deux comptes passent par le raccourci développeur pour la pièce
+# d'identité, pas par le vrai sélecteur de photos natif).
+appId: com.nicolaspoda.sistrs
+---
+# === Compte "Chloé Fontaine" : future "refuseuse", créée en premier pour
+# être trouvable par la recherche une fois le compte demandeuse connecté ===
+- launchApp:
+    clearState: true
+# Premier lancement après clearState : Metro doit resservir/recharger le
+# bundle JS, ce qui dépasse le délai d'attente implicite par défaut de
+# Maestro sur certaines machines — on attend explicitement plus longtemps.
+- extendedWaitUntil:
+    visible: "S'inscrire"
+    timeout: 30000
+- tapOn: "S'inscrire"
+
+# --- Étape 1 : Tes informations ---
+- tapOn:
+    id: "input-first-name"
+- inputText: "Chloé"
+- tapOn:
+    id: "input-last-name"
+- inputText: "Fontaine"
+- tapOn: "Tes informations"  # tap sur un texte statique pour fermer le clavier (hideKeyboard non fiable ici)
+
+# Date de naissance : on garde le défaut pré-sélectionné par l'app
+# ("aujourd'hui - 25 ans", toujours majeure) plutôt que de naviguer le
+# calendrier.
+- tapOn:
+    id: "input-birth-date"
+- tapOn: "Valider"
+
+- tapOn:
+    id: "input-email"
+- inputText: "${FRIEND_EMAIL}"
+# Maestro/XCTest ne saisit pas fiablement dans un champ secureTextEntry
+# actif — on bascule les deux champs en "mot de passe visible" AVANT de
+# taper quoi que ce soit (voir signup-participant.yaml).
+- tapOn:
+    id: "input-password-toggle-visibility"
+- tapOn:
+    id: "input-confirm-password-toggle-visibility"
+- tapOn:
+    id: "input-password"
+- inputText: "${FRIEND_PASSWORD}"
+- tapOn:
+    id: "input-confirm-password"
+- inputText: "${FRIEND_PASSWORD}"
+- tapOn: "Tes informations"  # ferme le clavier
+
+# "Participante" est déjà le rôle par défaut, on le confirme explicitement.
+- tapOn:
+    id: "role-participant"
+
+# --- Pièce d'identité ---
+# Raccourci développeur plutôt que le vrai sélecteur de photos natif (UI
+# système non fiable à piloter par coordonnées dans Maestro).
+- tapOn:
+    id: "link-dev-use-test-id"
+- assertVisible: "Pièce d'identité ajoutée ✓"
+- tapOn:
+    id: "button-continue-step1"
+
+# L'OCR peut renvoyer un avertissement si la date lue sur la pièce ne
+# correspond pas à la date de naissance saisie — même bouton, libellé
+# différent ("Continuer quand même"), pas de changement d'écran.
+- runFlow:
+    when:
+      visible: "Continuer quand même"
+    commands:
+      - tapOn:
+          id: "button-continue-step1"
+
+# --- Étape 2 : Tes préférences ---
+- tapOn:
+    id: "age-bracket-18-25"
+- tapOn: "Bar"
+- tapOn:
+    id: "link-dev-bypass-faceid"
+- assertVisible: "Face ID activé ✓"
+
+- tapOn:
+    id: "button-create-account"
+- assertVisible: "Compte créé avec succès.*"
+
+# === Compte "Inès Marchand" : demandeuse — créée tout de suite après (la
+# création de compte ramène à l'écran de connexion, Chloé n'est jamais
+# connectée à ce stade) ===
+- tapOn: "S'inscrire"
+
+- tapOn:
+    id: "input-first-name"
+- inputText: "Inès"
+- tapOn:
+    id: "input-last-name"
+- inputText: "Marchand"
+- tapOn: "Tes informations"
+
+- tapOn:
+    id: "input-birth-date"
+- tapOn: "Valider"
+
+- tapOn:
+    id: "input-email"
+- inputText: "${REQUESTER_EMAIL}"
+- tapOn:
+    id: "input-password-toggle-visibility"
+- tapOn:
+    id: "input-confirm-password-toggle-visibility"
+- tapOn:
+    id: "input-password"
+- inputText: "${REQUESTER_PASSWORD}"
+- tapOn:
+    id: "input-confirm-password"
+- inputText: "${REQUESTER_PASSWORD}"
+- tapOn: "Tes informations"
+
+- tapOn:
+    id: "role-participant"
+
+- tapOn:
+    id: "link-dev-use-test-id"
+- assertVisible: "Pièce d'identité ajoutée ✓"
+- tapOn:
+    id: "button-continue-step1"
+- runFlow:
+    when:
+      visible: "Continuer quand même"
+    commands:
+      - tapOn:
+          id: "button-continue-step1"
+
+- tapOn:
+    id: "age-bracket-18-25"
+- tapOn: "Bar"
+- tapOn:
+    id: "link-dev-bypass-faceid"
+- assertVisible: "Face ID activé ✓"
+
+- tapOn:
+    id: "button-create-account"
+- assertVisible: "Compte créé avec succès.*"
+
+# --- Connexion avec le compte "Inès Marchand" tout juste créé ---
+- tapOn:
+    id: "input-email"
+- inputText: "${REQUESTER_EMAIL}"
+- tapOn:
+    id: "input-password"
+- inputText: "${REQUESTER_PASSWORD}"
+- hideKeyboard
+- tapOn:
+    id: "button-sign-in"
+    optional: true
+# Dialogues système iOS best-effort après connexion : notifications push et
+# proposition d'enregistrer le mot de passe.
+- tapOn:
+    text: "Autoriser"
+    optional: true
+- tapOn:
+    text: "Plus tard"
+    optional: true
+- assertVisible: "Communauté vérifiée.*"
+
+# === Recherche et envoi de la demande d'amitié ===
+- tapOn: "Amies.*"
+- tapOn:
+    id: "tab-find"
+- tapOn:
+    id: "input-friend-search"
+- inputText: "Fontaine"
+- assertVisible: "Chloé Fontaine"
+- tapOn:
+    id: "button-send-friend-request"
+- assertVisible: "Demande envoyée"
+
+# --- Déconnexion de "Inès Marchand" ---
+- tapOn: "Profil.*"
+- tapOn:
+    id: "button-sign-out"
+# Alert.alert natif à deux boutons ("Annuler" / "Se déconnecter") — le
+# libellé "Se déconnecter" est aussi celui du bouton qui a ouvert cette
+# alerte, mais c'est bien le bouton de l'alerte (au-dessus dans la pile de
+# vues) qui reçoit ce deuxième tap.
+- tapOn: "Se déconnecter"
+- assertVisible: "S'inscrire"
+
+# === Connexion avec "Chloé Fontaine" : refus de la demande ===
+- tapOn:
+    id: "input-email"
+- inputText: "${FRIEND_EMAIL}"
+- tapOn:
+    id: "input-password"
+- inputText: "${FRIEND_PASSWORD}"
+- hideKeyboard
+- tapOn:
+    id: "button-sign-in"
+    optional: true
+- tapOn:
+    text: "Autoriser"
+    optional: true
+- tapOn:
+    text: "Plus tard"
+    optional: true
+- assertVisible: "Communauté vérifiée.*"
+
+# L'onglet "Demandes" est déjà celui affiché par défaut à l'arrivée sur
+# "Amies" (activeTab initial = "requests" dans friends.tsx).
+- tapOn: "Amies.*"
+- assertVisible: "Inès Marchand"
+- assertVisible: "Veut devenir ton amie"
+- tapOn:
+    id: "button-decline-friend-request"
+
+# Vérifie que la demande a bien disparu de l'onglet "Demandes" : plus de
+# nom, et l'état vide ("Aucune demande en attente") remonte à la place.
+- assertNotVisible: "Inès Marchand"
+- assertVisible: "Aucune demande en attente"
+
+# Vérifie que le refus (DELETE de la ligne `friendships`, pas juste un
+# changement de statut) n'a laissé aucune amitié côté Chloé : l'onglet
+# "Mes amies" reste vide, "Inès Marchand" n'y apparaît pas.
+- tapOn:
+    id: "tab-friends"
+- assertNotVisible: "Inès Marchand"
+- assertVisible: "Pas encore d'amies"
+
+# --- Déconnexion de "Chloé Fontaine" ---
+- tapOn: "Profil.*"
+- tapOn:
+    id: "button-sign-out"
+- tapOn: "Se déconnecter"
+- assertVisible: "S'inscrire"
+
+# === Reconnexion avec "Inès Marchand" : vérifie que le refus est
+# symétrique — elle ne voit pas non plus Chloé comme amie ===
+- tapOn:
+    id: "input-email"
+- inputText: "${REQUESTER_EMAIL}"
+- tapOn:
+    id: "input-password"
+- inputText: "${REQUESTER_PASSWORD}"
+- hideKeyboard
+- tapOn:
+    id: "button-sign-in"
+    optional: true
+- tapOn:
+    text: "Autoriser"
+    optional: true
+- tapOn:
+    text: "Plus tard"
+    optional: true
+- assertVisible: "Communauté vérifiée.*"
+
+- tapOn: "Amies.*"
+- tapOn:
+    id: "tab-friends"
+- assertNotVisible: "Chloé Fontaine"
+- assertVisible: "Pas encore d'amies"

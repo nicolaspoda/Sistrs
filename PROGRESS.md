@@ -7,34 +7,37 @@
 > `PROGRESS_ARCHIVE.md` (déplacé là pour garder ce fichier court — le lire
 > seulement si un détail précis d'une session passée est nécessaire).
 
-Dernière mise à jour : 2026-10-19 (flow Maestro poll-revote écrit — hors
-backlog, demande séparée ; sessions précédentes archivées dans
-PROGRESS_ARCHIVE.md)
+Dernière mise à jour : 2026-10-19 (flow Maestro decline-friend-request
+écrit — hors backlog, demande séparée ; sessions précédentes archivées
+dans PROGRESS_ARCHIVE.md)
 
-## Fait (session pipeline autonome — flow poll-revote)
+## Fait (session pipeline autonome — flow decline-friend-request)
 
-- **`.maestro/poll-revote.yaml` écrit** : demande séparée de l'utilisateur
-  (pas dans le backlog "Flows Maestro manquants", déjà entièrement fait,
-  items 1-8). `channel-post-and-poll.yaml` (item 5) ne testait que le
-  PREMIER vote sur un sondage ; ce nouveau flow vérifie le CHANGEMENT de
-  vote : la participante vote pour "Un karaoke", puis change pour "Un bar
-  a cocktails", et on vérifie que l'ancienne option repasse à 0 % pendant
-  que la nouvelle passe à 100 % (total toujours à 1 vote, jamais 2).
-  Réutilise tel quel le setup de `channel-post-and-poll.yaml` via
-  `runFlow` plutôt que de le dupliquer. Pas de testID dédié sur les
-  options de sondage affichées (seuls les champs de création en ont) :
-  vérification par le pourcentage affiché à côté du libellé de chaque
-  option, via le sélecteur relatif Maestro `rightOf` (jamais utilisé
-  jusqu'ici dans ce repo, mais documenté côté Maestro). Ajouté à
-  `scripts/run-maestro-suite.sh` (`run_flow "poll-revote.yaml"` avec ses
-  propres variables `REVOTE_ORGANIZER_EMAIL`/`REVOTE_PARTICIPANT_EMAIL`,
-  indépendantes de celles de `channel-post-and-poll.yaml`).
+- **`.maestro/decline-friend-request.yaml` écrit** : demande séparée de
+  l'utilisateur (pas dans le backlog "Flows Maestro manquants", déjà
+  entièrement fait, items 1-8). `friend-request-flow.yaml` ne couvrait
+  que l'ACCEPTATION d'une demande d'amitié ; ce nouveau flow couvre le
+  REFUS, jusque-là non testé. Deux comptes ("Chloé Fontaine"/FRIEND_*,
+  "Inès Marchand"/REQUESTER_*) — noms de famille différents de
+  friend-request-flow.yaml ("Rousseau"/"Girard") pour que la recherche
+  par nom ne remonte jamais un profil de l'autre flow sur un run
+  partagé. Inès envoie la demande à Chloé, qui la refuse via
+  `button-decline-friend-request` (testID déjà existant). Vérifie que la
+  demande disparaît de l'onglet "Demandes" (état vide "Aucune demande en
+  attente") ET que les deux comptes n'apparaissent PAS comme amies
+  ensuite, des deux côtés : onglet "Mes amies" vide pour Chloé, puis
+  reconnexion avec Inès pour vérifier que son onglet "Mes amies" est vide
+  aussi. `handleDecline` dans `app/(tabs)/friends.tsx` fait un DELETE
+  direct de la ligne `friendships` (pas un changement de statut), d'où
+  cette vérification symétrique des deux côtés. Ajouté à
+  `scripts/run-maestro-suite.sh` (`run_flow "decline-friend-request.yaml"`
+  avec ses propres variables `DECLINE_FRIEND_EMAIL`/
+  `DECLINE_REQUESTER_EMAIL`, indépendantes de celles de
+  `friend-request-flow.yaml`).
 - **Validation effectuée** : pas d'exécution réelle (pas de Mac/Simulator
   connecté à cette session) — validation statique uniquement (`bash -n`
   sur `run-maestro-suite.sh`, parsing YAML du nouveau flow avec PyYAML),
-  les deux OK. Le sélecteur `rightOf` n'a donc pas pu être vérifié sur un
-  vrai Simulator — à surveiller en premier si ce flow échoue à sa
-  première exécution réelle.
+  les deux OK.
 
 ## Repères opérationnels essentiels (voir archive pour le détail)
 
@@ -53,9 +56,9 @@ PROGRESS_ARCHIVE.md)
   un dossier connecté. Backlog Maestro (8 flows couvrant toute l'app) 100%
   écrit/câblé dans `scripts/run-maestro-suite.sh` mais jamais exécuté pour
   de vrai sur Simulator — reste la "Branche B" bloquée du pipeline. Les
-  flows `cancel-registration.yaml` et `poll-revote.yaml` (hors backlog,
-  demandes séparées) sont dans la même situation : écrits/câblés, jamais
-  exécutés pour de vrai.
+  flows `cancel-registration.yaml`, `poll-revote.yaml` et
+  `decline-friend-request.yaml` (hors backlog, demandes séparées) sont
+  dans la même situation : écrits/câblés, jamais exécutés pour de vrai.
 
 ## En cours / à faire ensuite
 

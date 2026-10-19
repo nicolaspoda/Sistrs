@@ -958,3 +958,28 @@ lancer localement à la fin de cette section.
   l'utilisateur** : ces comptes développeur payants ne doivent pas être
   créés automatiquement par le pipeline — à confirmer explicitement le
   moment venu.
+
+## Session pipeline autonome — flow poll-revote (2026-10-19)
+
+- **`.maestro/poll-revote.yaml` écrit** : demande séparée de l'utilisateur
+  (pas dans le backlog "Flows Maestro manquants", déjà entièrement fait,
+  items 1-8). `channel-post-and-poll.yaml` (item 5) ne testait que le
+  PREMIER vote sur un sondage ; ce nouveau flow vérifie le CHANGEMENT de
+  vote : la participante vote pour "Un karaoke", puis change pour "Un bar
+  a cocktails", et on vérifie que l'ancienne option repasse à 0 % pendant
+  que la nouvelle passe à 100 % (total toujours à 1 vote, jamais 2).
+  Réutilise tel quel le setup de `channel-post-and-poll.yaml` via
+  `runFlow` plutôt que de le dupliquer. Pas de testID dédié sur les
+  options de sondage affichées (seuls les champs de création en ont) :
+  vérification par le pourcentage affiché à côté du libellé de chaque
+  option, via le sélecteur relatif Maestro `rightOf` (jamais utilisé
+  jusqu'ici dans ce repo, mais documenté côté Maestro). Ajouté à
+  `scripts/run-maestro-suite.sh` (`run_flow "poll-revote.yaml"` avec ses
+  propres variables `REVOTE_ORGANIZER_EMAIL`/`REVOTE_PARTICIPANT_EMAIL`,
+  indépendantes de celles de `channel-post-and-poll.yaml`).
+- **Validation effectuée** : pas d'exécution réelle (pas de Mac/Simulator
+  connecté à cette session) — validation statique uniquement (`bash -n`
+  sur `run-maestro-suite.sh`, parsing YAML du nouveau flow avec PyYAML),
+  les deux OK. Le sélecteur `rightOf` n'a donc pas pu être vérifié sur un
+  vrai Simulator — à surveiller en premier si ce flow échoue à sa
+  première exécution réelle.
