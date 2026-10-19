@@ -8,7 +8,9 @@
 # Optionnel : TEST_PASSWORD=le-mot-de-passe-du-seed ./scripts/run-maestro-suite.sh
 #   (mot de passe du compte de test.participante@sistrs.app, voir
 #   supabase/dev-seed-test-participant.sql — sans ça, login.yaml et
-#   smoke_navigation.yaml sont sautés, seul signup-participant.yaml tourne)
+#   smoke_navigation.yaml sont sautés ; signup-participant.yaml et
+#   signup-organizer.yaml tournent dans tous les cas, chacun créant son
+#   propre compte de test à la volée)
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -19,10 +21,13 @@ mkdir -p "$REPORT_DIR"
 
 SIGNUP_EMAIL="test.e2e.$(date +%s)@example.com"
 SIGNUP_PASSWORD="motdepasse123"
+SIGNUP_ORGANIZER_EMAIL="test.e2e.organizer.$(date +%s)@example.com"
+SIGNUP_ORGANIZER_PASSWORD="motdepasse123"
 
 {
   echo "=== Run Maestro $TIMESTAMP ==="
   echo "Email généré pour signup-participant : $SIGNUP_EMAIL"
+  echo "Email généré pour signup-organizer : $SIGNUP_ORGANIZER_EMAIL"
   echo ""
 } | tee "$REPORT_FILE"
 
@@ -47,6 +52,10 @@ run_flow() {
 run_flow "signup-participant.yaml" \
   --env SIGNUP_EMAIL="$SIGNUP_EMAIL" \
   --env SIGNUP_PASSWORD="$SIGNUP_PASSWORD"
+
+run_flow "signup-organizer.yaml" \
+  --env SIGNUP_EMAIL="$SIGNUP_ORGANIZER_EMAIL" \
+  --env SIGNUP_PASSWORD="$SIGNUP_ORGANIZER_PASSWORD"
 
 if [ -n "${TEST_PASSWORD:-}" ]; then
   run_flow "login.yaml" \
