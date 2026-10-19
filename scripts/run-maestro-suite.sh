@@ -8,7 +8,9 @@
 # Optionnel : TEST_PASSWORD=le-mot-de-passe-du-seed ./scripts/run-maestro-suite.sh
 #   (mot de passe du compte de test.participante@sistrs.app, voir
 #   supabase/dev-seed-test-participant.sql — sans ça, login.yaml et
-#   smoke_navigation.yaml sont sautés, seul signup-participant.yaml tourne)
+#   smoke_navigation.yaml sont sautés ; signup-participant.yaml et
+#   messaging-send.yaml tournent dans tous les cas, chacun avec ses propres
+#   comptes générés à la volée)
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -19,6 +21,17 @@ mkdir -p "$REPORT_DIR"
 
 SIGNUP_EMAIL="test.e2e.$(date +%s)@example.com"
 SIGNUP_PASSWORD="motdepasse123"
+
+# Identifiants dédiés à messaging-send.yaml (deux comptes, destinataire +
+# expéditrice) — un suffixe "receiver"/"sender" pour rester unique même si
+# ce script tourne deux fois dans la même seconde que les variables
+# ci-dessus.
+MESSAGING_RECEIVER_EMAIL="test.e2e.receiver.$(date +%s)@example.com"
+MESSAGING_RECEIVER_PASSWORD="motdepasse123"
+MESSAGING_SENDER_EMAIL="test.e2e.sender.$(date +%s)@example.com"
+MESSAGING_SENDER_PASSWORD="motdepasse123"
+MESSAGING_FIRST_MESSAGE="Coucou, ça te dit la soirée de vendredi ?"
+MESSAGING_REPLY_MESSAGE="Oui carrément, j'ai hâte !"
 
 {
   echo "=== Run Maestro $TIMESTAMP ==="
@@ -47,6 +60,14 @@ run_flow() {
 run_flow "signup-participant.yaml" \
   --env SIGNUP_EMAIL="$SIGNUP_EMAIL" \
   --env SIGNUP_PASSWORD="$SIGNUP_PASSWORD"
+
+run_flow "messaging-send.yaml" \
+  --env RECEIVER_EMAIL="$MESSAGING_RECEIVER_EMAIL" \
+  --env RECEIVER_PASSWORD="$MESSAGING_RECEIVER_PASSWORD" \
+  --env SENDER_EMAIL="$MESSAGING_SENDER_EMAIL" \
+  --env SENDER_PASSWORD="$MESSAGING_SENDER_PASSWORD" \
+  --env FIRST_MESSAGE="$MESSAGING_FIRST_MESSAGE" \
+  --env REPLY_MESSAGE="$MESSAGING_REPLY_MESSAGE"
 
 if [ -n "${TEST_PASSWORD:-}" ]; then
   run_flow "login.yaml" \

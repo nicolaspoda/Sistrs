@@ -272,6 +272,7 @@ export default function FriendsScreen() {
               </View>
               <View style={styles.rowActions}>
                 <TouchableOpacity
+                  testID="button-accept-friend-request"
                   style={[styles.smallButton, styles.smallButtonPrimary]}
                   onPress={() => handleAccept(item)}
                   disabled={actioningId === item.id}
@@ -343,6 +344,7 @@ export default function FriendsScreen() {
           ListHeaderComponent={
             <View style={styles.searchHeader}>
               <AuthTextField
+                testID="input-friend-search"
                 label="Rechercher une amie"
                 placeholder="Prénom ou nom"
                 value={searchQuery}
@@ -379,6 +381,7 @@ export default function FriendsScreen() {
                   <Text style={styles.statusLabel}>Demande envoyée</Text>
                 ) : (
                   <PrimaryButton
+                    testID="button-send-friend-request"
                     label="Ajouter"
                     style={styles.addButton}
                     onPress={() => handleSendRequest(item)}
