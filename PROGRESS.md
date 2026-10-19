@@ -5,10 +5,59 @@
 > entier avant de reprendre le travail, surtout après un changement de
 > compte/session Claude Code.
 
-Dernière mise à jour : 2026-10-19 (session : flow Maestro event-review ajouté
-— item 6 du backlog —, découverte d'une limite d'architecture importante sur
-le pont Mac — voir "Pipeline dev → test E2E" plus bas —, et d'un vrai manque
-produit — aucun écran "mes événements passés")
+Dernière mise à jour : 2026-10-19 (session : flow Maestro notifications.yaml
+ajouté — item 7 du backlog —, workflow du pipeline passé en commit direct sur
+`main` sans branche/PR sur décision explicite de l'utilisateur)
+
+## Fait (session pipeline autonome — flow notifications)
+
+- **`.maestro/notifications.yaml` écrit** (item 7 du backlog "Flows Maestro
+  manquants" ci-dessous) : vérifie qu'une notification in-app apparaît bien
+  après l'action d'une autre utilisatrice, et qu'elle peut être marquée comme
+  lue. Réutilise le déclencheur de `friend-request-flow.yaml` (demande
+  d'amitié entre deux comptes créés à la volée, "Chloé Marchand"
+  destinataire / "Juliette Caron" expéditrice) plutôt que d'en inventer un
+  nouveau — chemin le plus simple pour générer une notification
+  `friend_request` fiable sans dépendre d'un seed. Après connexion avec le
+  compte destinataire, le flow ouvre l'écran Notifications via la cloche de
+  l'onglet Accueil (`button-notifications`), vérifie que le bandeau "Tout
+  marquer comme lu" et le libellé "Juliette Caron vous a envoyé une demande
+  d'amie" sont visibles, tape sur le nouveau bouton dédié
+  `button-notification-mark-read` (marque comme lue sans naviguer vers le
+  profil de l'expéditrice, contrairement à un tap sur la ligne entière), puis
+  vérifie que le bandeau "Tout marquer comme lu" disparaît (confirme que le
+  marquage est bien persisté) tandis que le libellé de la notification reste
+  visible. Retour à l'écran Accueil via le nouveau bouton `button-back`.
+  Ajouté à `scripts/run-maestro-suite.sh` (toujours exécuté, comptes générés
+  à la volée comme les autres flows non gated par `TEST_PASSWORD`).
+  TestID ajoutés : `app/notifications.tsx` (`button-notification-mark-read`
+  sur le bouton de marquage individuel), `components/BackButton.tsx`
+  (`button-back`, composant partagé par plusieurs écrans — aucun flow
+  existant ne s'appuyait encore dessus).
+  Validation faite : le YAML parse comme deux documents valides (`pyyaml`,
+  95 étapes), `bash -n` passe sur le script modifié, et la suite complète a
+  été dry-runnée avec un faux binaire `maestro` (tous les flows, y compris
+  `notifications.yaml`, s'enchaînent et sont bien rapportés `✅`). Relecture
+  manuelle des deux diffs `.tsx` (ajout d'une seule prop `testID` chacun,
+  aucun changement de logique). `tsc --noEmit`/`npm install` non tentés avec
+  plus de détail que les sessions précédentes : limitation déjà confirmée et
+  documentée (réseau du sandbox cloud bloqué, `ENOTFOUND registry.npmjs.org`,
+  revérifié cette session avec le même résultat).
+- **Branche B (test E2E réel) non tentée ce run** : `get_device_info` répond
+  (Mac joignable), mais `connectedFolders` est revenu vide — contrairement au
+  run précédent (flow event-review) qui avait pour la première fois un
+  dossier connecté. Conforme à la procédure : pas de tentative de
+  contournement par contrôle d'écran macOS pour une branche B qui n'a même
+  pas de dossier connecté (ce contournement ne s'applique qu'à un
+  `device_bash` incapable malgré un dossier connecté, pas à son absence).
+  Branche A suivie à la place.
+- **Changement de workflow (décision explicite de l'utilisateur, 2026-10-19)
+  reçu dans les instructions de cette tâche planifiée** : ce pipeline ne crée
+  plus de branches ni de Pull Requests — tout commit va directement sur
+  `main`. Les PR #2 à #7 mentionnées dans les sessions précédentes
+  correspondent à l'ancien workflow ; les anciennes PR encore ouvertes (s'il
+  en reste) sont volontairement laissées de côté, à traiter manuellement par
+  l'utilisateur s'il le souhaite.
 
 ## Fait (session pipeline — flow event-review + découverte architecture Mac)
 
@@ -680,20 +729,29 @@ lancer localement à la fin de cette section.
      vrai sur Simulator (Mac non connecté à ce run). A aussi permis de
      trouver et corriger un vrai bug bloquant (aucun point d'entrée UI
      vers le canal d'une organisatrice). Mergé via PR #7.
-  6. `event-review.yaml` — avis (note + commentaire) sur un événement
-     passé.
-  7. `notifications.yaml` — vérifie qu'une notification in-app apparaît
-     après une des actions ci-dessus (demande d'amie, inscription
-     confirmée...).
+  6. ~~`event-review.yaml`~~ **fait le 2026-10-19** (voir section "Fait
+     (session pipeline — flow event-review + découverte architecture Mac)"
+     plus haut) — écrit et câblé dans le script (groupe gated par
+     `TEST_PASSWORD`, dépend du seed), pas encore exécuté pour de vrai sur
+     Simulator. Committé directement sur `main` (avant le changement de
+     workflow sans PR, mais sans PR ouverte non plus — voir le commit
+     `a5cfd77`).
+  7. ~~`notifications.yaml`~~ **fait le 2026-10-19** (voir section "Fait
+     (session pipeline autonome — flow notifications)" plus haut) — écrit
+     et câblé dans le script, pas encore exécuté pour de vrai sur Simulator
+     (Mac non connecté à ce run). Committé directement sur `main` (nouveau
+     workflow sans branche/PR).
   8. `profile-edit-avatar.yaml` — modification du profil + upload avatar
      réel vers Storage.
   Chaque nouveau flow doit être ajouté à `scripts/run-maestro-suite.sh` et
   à la liste lue par la tâche planifiée.
-  **Note** : les items 1 à 3 sont mergés dans `main` (PR #2, #3, #4).
-  L'item 4 a une PR ouverte (#5), écrite mais pas encore mergée — la
-  coche "fait" sur cet item n'apparaîtra ici qu'une fois cette PR
-  mergée. Prochaine tâche non bloquée pour le pipeline : item 5
-  (`channel-post-and-poll.yaml`).
+  **Note** : les items 1 à 7 sont tous écrits et câblés dans le script
+  (mergés via PR #2-#7 pour les items 1-5, committés directement sur `main`
+  pour les items 6-7 après le changement de workflow). **Aucun n'a encore
+  été exécuté pour de vrai sur un Simulator** — la branche B du pipeline
+  reste bloquée (voir "Pipeline dev → test E2E → fix en boucle" plus bas).
+  Prochaine tâche non bloquée pour le pipeline : item 8
+  (`profile-edit-avatar.yaml`).
 - **Backlog "prêt pour le store"** (distinct des tests, à ne traiter
   qu'une fois la couverture E2E ci-dessus avancée) : politique de
   confidentialité (obligatoire — l'app traite genre + pièce d'identité),

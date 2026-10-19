@@ -215,6 +215,7 @@ export default function NotificationsScreen() {
               </View>
               {isUnread ? (
                 <TouchableOpacity
+                  testID="button-notification-mark-read"
                   style={styles.markReadButton}
                   onPress={(event) => {
                     event.stopPropagation();

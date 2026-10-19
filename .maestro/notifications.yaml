@@ -1,0 +1,270 @@
+# Vérifie qu'une notification in-app apparaît bien après une action d'une
+# autre utilisatrice, et qu'elle peut être marquée comme lue — item 7 du
+# backlog "Flows Maestro manquants" dans PROGRESS.md.
+#
+# Réutilise le même déclencheur que friend-request-flow.yaml (une demande
+# d'amitié) plutôt que d'en inventer un nouveau : c'est le chemin le plus
+# simple pour générer une notification "friend_request" de façon fiable
+# avec deux comptes créés à la volée, sans dépendre d'un seed.
+#
+# Deux comptes participantes sont créés :
+#  - "Chloé Marchand" (RECIPIENT_*) : créée en premier, pour être
+#    trouvable par la recherche, puis pour recevoir la notification.
+#  - "Juliette Caron" (SENDER_*) : connectée juste après sa création,
+#    recherche "Marchand" et envoie la demande d'amitié, puis se
+#    déconnecte.
+# On se connecte ensuite en tant que Chloé pour vérifier que la
+# notification "<nom> vous a envoyé une demande d'amie" apparaît dans
+# l'écran Notifications (accessible via la cloche sur l'onglet Accueil),
+# que le bandeau "Tout marquer comme lu" est bien présent tant qu'elle est
+# non lue, puis qu'il disparaît une fois la notification marquée comme lue
+# via le bouton dédié (sans naviguer vers le profil de l'expéditrice).
+#
+# Usage (emails uniques à chaque run pour éviter "compte déjà existant") :
+#   maestro test \
+#     --env RECIPIENT_EMAIL=test.e2e.notif.recipient.$(date +%s)@example.com \
+#     --env RECIPIENT_PASSWORD=motdepasse123 \
+#     --env SENDER_EMAIL=test.e2e.notif.sender.$(date +%s)@example.com \
+#     --env SENDER_PASSWORD=motdepasse123 \
+#     .maestro/notifications.yaml
+#
+# Prérequis : identiques aux autres flows de signup — pellicule du Simulator
+# avec au moins une photo, permission Photos déjà accordée à l'app (les
+# deux comptes passent par le raccourci développeur pour la pièce
+# d'identité, pas par le vrai sélecteur de photos natif).
+appId: com.nicolaspoda.sistrs
+---
+# === Compte "Chloé Marchand" : future destinataire de la notification,
+# créée en premier pour être trouvable par la recherche ===
+- launchApp:
+    clearState: true
+# Premier lancement après clearState : Metro doit resservir/recharger le
+# bundle JS, ce qui dépasse le délai d'attente implicite par défaut de
+# Maestro sur certaines machines — on attend explicitement plus longtemps.
+- extendedWaitUntil:
+    visible: "S'inscrire"
+    timeout: 30000
+- tapOn: "S'inscrire"
+
+# --- Étape 1 : Tes informations ---
+- tapOn:
+    id: "input-first-name"
+- inputText: "Chloé"
+- tapOn:
+    id: "input-last-name"
+- inputText: "Marchand"
+- tapOn: "Tes informations"  # tap sur un texte statique pour fermer le clavier (hideKeyboard non fiable ici)
+
+# Date de naissance : on garde le défaut pré-sélectionné par l'app
+# ("aujourd'hui - 25 ans", toujours majeure) plutôt que de naviguer le
+# calendrier.
+- tapOn:
+    id: "input-birth-date"
+- tapOn: "Valider"
+
+- tapOn:
+    id: "input-email"
+- inputText: "${RECIPIENT_EMAIL}"
+# Maestro/XCTest ne saisit pas fiablement dans un champ secureTextEntry
+# actif — on bascule les deux champs en "mot de passe visible" AVANT de
+# taper quoi que ce soit (voir signup-participant.yaml).
+- tapOn:
+    id: "input-password-toggle-visibility"
+- tapOn:
+    id: "input-confirm-password-toggle-visibility"
+- tapOn:
+    id: "input-password"
+- inputText: "${RECIPIENT_PASSWORD}"
+- tapOn:
+    id: "input-confirm-password"
+- inputText: "${RECIPIENT_PASSWORD}"
+- tapOn: "Tes informations"  # ferme le clavier
+
+# "Participante" est déjà le rôle par défaut, on le confirme explicitement.
+- tapOn:
+    id: "role-participant"
+
+# --- Pièce d'identité ---
+# Raccourci développeur plutôt que le vrai sélecteur de photos natif (UI
+# système non fiable à piloter par coordonnées dans Maestro).
+- tapOn:
+    id: "link-dev-use-test-id"
+- assertVisible: "Pièce d'identité ajoutée ✓"
+- tapOn:
+    id: "button-continue-step1"
+
+# L'OCR peut renvoyer un avertissement si la date lue sur la pièce ne
+# correspond pas à la date de naissance saisie — même bouton, libellé
+# différent ("Continuer quand même"), pas de changement d'écran.
+- runFlow:
+    when:
+      visible: "Continuer quand même"
+    commands:
+      - tapOn:
+          id: "button-continue-step1"
+
+# --- Étape 2 : Tes préférences ---
+- tapOn:
+    id: "age-bracket-18-25"
+- tapOn: "Bar"
+- tapOn:
+    id: "link-dev-bypass-faceid"
+- assertVisible: "Face ID activé ✓"
+
+- tapOn:
+    id: "button-create-account"
+- assertVisible: "Compte créé avec succès.*"
+
+# === Compte "Juliette Caron" : expéditrice de la demande d'amitié —
+# créée tout de suite après (la création de compte ramène à l'écran de
+# connexion, Chloé n'est jamais connectée à ce stade) ===
+- tapOn: "S'inscrire"
+
+- tapOn:
+    id: "input-first-name"
+- inputText: "Juliette"
+- tapOn:
+    id: "input-last-name"
+- inputText: "Caron"
+- tapOn: "Tes informations"
+
+- tapOn:
+    id: "input-birth-date"
+- tapOn: "Valider"
+
+- tapOn:
+    id: "input-email"
+- inputText: "${SENDER_EMAIL}"
+- tapOn:
+    id: "input-password-toggle-visibility"
+- tapOn:
+    id: "input-confirm-password-toggle-visibility"
+- tapOn:
+    id: "input-password"
+- inputText: "${SENDER_PASSWORD}"
+- tapOn:
+    id: "input-confirm-password"
+- inputText: "${SENDER_PASSWORD}"
+- tapOn: "Tes informations"
+
+- tapOn:
+    id: "role-participant"
+
+- tapOn:
+    id: "link-dev-use-test-id"
+- assertVisible: "Pièce d'identité ajoutée ✓"
+- tapOn:
+    id: "button-continue-step1"
+- runFlow:
+    when:
+      visible: "Continuer quand même"
+    commands:
+      - tapOn:
+          id: "button-continue-step1"
+
+- tapOn:
+    id: "age-bracket-18-25"
+- tapOn: "Bar"
+- tapOn:
+    id: "link-dev-bypass-faceid"
+- assertVisible: "Face ID activé ✓"
+
+- tapOn:
+    id: "button-create-account"
+- assertVisible: "Compte créé avec succès.*"
+
+# --- Connexion avec le compte "Juliette Caron" tout juste créé ---
+- tapOn:
+    id: "input-email"
+- inputText: "${SENDER_EMAIL}"
+- tapOn:
+    id: "input-password"
+- inputText: "${SENDER_PASSWORD}"
+- hideKeyboard
+- tapOn:
+    id: "button-sign-in"
+    optional: true
+# Dialogues système iOS best-effort après connexion : notifications push et
+# proposition d'enregistrer le mot de passe.
+- tapOn:
+    text: "Autoriser"
+    optional: true
+- tapOn:
+    text: "Plus tard"
+    optional: true
+- assertVisible: "Communauté vérifiée.*"
+
+# === Recherche et envoi de la demande d'amitié à "Chloé Marchand" ===
+# Recherche par le nom de famille seul ("Marchand") plutôt que le nom
+# complet : app/(tabs)/friends.tsx filtre avec
+# `first_name.ilike.%query%,last_name.ilike.%query%` — un nom complet ne
+# matcherait aucun des deux champs pris séparément.
+- tapOn: "Amies.*"
+- tapOn:
+    id: "tab-find"
+- tapOn:
+    id: "input-friend-search"
+- inputText: "Marchand"
+- assertVisible: "Chloé Marchand"
+- tapOn:
+    id: "button-send-friend-request"
+- assertVisible: "Demande envoyée"
+
+# --- Déconnexion de "Juliette Caron" ---
+- tapOn: "Profil.*"
+- tapOn:
+    id: "button-sign-out"
+# Alert.alert natif à deux boutons ("Annuler" / "Se déconnecter") — le
+# libellé "Se déconnecter" est aussi celui du bouton qui a ouvert cette
+# alerte, mais c'est bien le bouton de l'alerte (au-dessus dans la pile de
+# vues) qui reçoit ce deuxième tap.
+- tapOn: "Se déconnecter"
+- assertVisible: "S'inscrire"
+
+# === Connexion avec "Chloé Marchand" : vérification de la notification ===
+- tapOn:
+    id: "input-email"
+- inputText: "${RECIPIENT_EMAIL}"
+- tapOn:
+    id: "input-password"
+- inputText: "${RECIPIENT_PASSWORD}"
+- hideKeyboard
+- tapOn:
+    id: "button-sign-in"
+    optional: true
+- tapOn:
+    text: "Autoriser"
+    optional: true
+- tapOn:
+    text: "Plus tard"
+    optional: true
+- assertVisible: "Communauté vérifiée.*"
+
+# La cloche de l'onglet Accueil ouvre l'écran Notifications.
+- tapOn:
+    id: "button-notifications"
+
+# Le bandeau "Tout marquer comme lu" ne s'affiche que si unreadCount > 0
+# (voir app/notifications.tsx) : sa présence confirme qu'il y a bien une
+# notification non lue avant toute action de cette section.
+- assertVisible: "Tout marquer comme lu"
+- assertVisible: "Juliette Caron vous a envoyé une demande d'amie"
+
+# Marque la notification comme lue sans naviguer vers le profil de
+# l'expéditrice (bouton dédié avec stopPropagation, distinct du tap sur la
+# ligne entière qui appellerait aussi handlePress/la navigation).
+- tapOn:
+    id: "button-notification-mark-read"
+
+# Plus aucune notification non lue : le bandeau disparaît. Confirme que le
+# marquage comme lue a bien été persisté (pas seulement visuel).
+- assertNotVisible: "Tout marquer comme lu"
+
+# Le libellé reste visible : marquer comme lue ne supprime pas la
+# notification de la liste, seulement son état "non lue".
+- assertVisible: "Juliette Caron vous a envoyé une demande d'amie"
+
+# --- Retour à l'écran Accueil via le bouton retour ---
+- tapOn:
+    id: "button-back"
+- assertVisible: "Communauté vérifiée.*"

@@ -25,7 +25,7 @@ export function BackButton({ style, fallbackHref = "/(tabs)" }: BackButtonProps)
   };
 
   return (
-    <TouchableOpacity style={[styles.backButton, style]} onPress={handlePress} activeOpacity={0.7}>
+    <TouchableOpacity testID="button-back" style={[styles.backButton, style]} onPress={handlePress} activeOpacity={0.7}>
       <Ionicons name="chevron-back" size={22} color={Colors.text} />
     </TouchableOpacity>
   );
