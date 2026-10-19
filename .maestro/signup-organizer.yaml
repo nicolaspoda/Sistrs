@@ -1,0 +1,151 @@
+# Parcours d'inscription complet côté organisatrice : mêmes étapes que
+# signup-participant.yaml (infos, pièce d'identité via le raccourci
+# développeur, bypass Face ID dev) mais avec le rôle "Organisatrice", la
+# section "Tes spécialités" (pas de limite à 5, contrairement aux
+# préférences d'une participante) et une vérification de connexion après
+# coup pour confirmer que le rôle et les spécialités ont bien été
+# persistés côté serveur.
+#
+# Ce que ce flow NE vérifie PAS directement : la création automatique du
+# canal de l'organisatrice (trigger SQL `ensure_organizer_channel`, voir
+# `supabase/migrations/20260928010000_rls_and_triggers.sql`) n'est pas
+# visible dans l'onglet "Canaux" juste après l'inscription, car
+# l'organisatrice n'est pas auto-abonnée à son propre canal — seuls les
+# canaux suivis y apparaissent (voir `app/(tabs)/channels.tsx`). Une
+# vérification directe du canal nécessiterait soit un accès Supabase
+# direct depuis le flow (hors de portée de Maestro), soit un second
+# compte qui irait consulter le profil de l'organisatrice. On se contente
+# donc ici de vérifier que l'inscription "Organisatrice" fonctionne de
+# bout en bout côté UI/compte (ce qui déclenche bien le trigger, même
+# sans l'observer directement).
+#
+# Usage (email unique à chaque run pour éviter "compte déjà existant") :
+#   maestro test \
+#     --env SIGNUP_EMAIL=test.e2e.organizer.$(date +%s)@example.com \
+#     --env SIGNUP_PASSWORD=motdepasse123 \
+#     .maestro/signup-organizer.yaml
+#
+# Prérequis : identiques à signup-participant.yaml (pellicule du Simulator
+# avec au moins une photo, permission Photos déjà accordée à l'app).
+appId: com.nicolaspoda.sistrs
+---
+- launchApp:
+    clearState: true
+# Premier lancement après clearState : Metro doit resservir/recharger le
+# bundle JS, ce qui dépasse le délai d'attente implicite par défaut de
+# Maestro sur certaines machines — on attend explicitement plus longtemps.
+- extendedWaitUntil:
+    visible: "S'inscrire"
+    timeout: 30000
+- tapOn: "S'inscrire"
+
+# --- Étape 1 : Tes informations ---
+- tapOn:
+    id: "input-first-name"
+- inputText: "Camille"
+- tapOn:
+    id: "input-last-name"
+- inputText: "Moreau"
+- tapOn: "Tes informations"  # tap sur un texte statique pour fermer le clavier (hideKeyboard non fiable ici)
+
+# Date de naissance : on garde le défaut pré-sélectionné par l'app
+# ("aujourd'hui - 25 ans", toujours majeure) plutôt que de naviguer le
+# calendrier.
+- tapOn:
+    id: "input-birth-date"
+- tapOn: "Valider"
+
+- tapOn:
+    id: "input-email"
+- inputText: "${SIGNUP_EMAIL}"
+# Voir le commentaire équivalent dans signup-participant.yaml : on bascule
+# les deux champs en "mot de passe visible" AVANT de taper quoi que ce
+# soit, Maestro/XCTest ne saisissant pas fiablement dans un champ
+# secureTextEntry actif.
+- tapOn:
+    id: "input-password-toggle-visibility"
+- tapOn:
+    id: "input-confirm-password-toggle-visibility"
+- tapOn:
+    id: "input-password"
+- inputText: "${SIGNUP_PASSWORD}"
+- tapOn:
+    id: "input-confirm-password"
+- inputText: "${SIGNUP_PASSWORD}"
+- tapOn: "Tes informations"  # tap sur un texte statique pour fermer le clavier (hideKeyboard non fiable ici)
+
+# "Participante" est le rôle par défaut : on doit explicitement sélectionner
+# "Organisatrice" ici, contrairement à signup-participant.yaml.
+- tapOn:
+    id: "role-organizer"
+
+# --- Pièce d'identité ---
+# Raccourci développeur (voir signup-participant.yaml) : obligatoire pour
+# les deux rôles, pas seulement pour les participantes.
+- tapOn:
+    id: "link-dev-use-test-id"
+- assertVisible: "Pièce d'identité ajoutée ✓"
+
+- tapOn:
+    id: "button-continue-step1"
+
+# Même avertissement OCR possible qu'en signup-participant.yaml (date fixe
+# sur la fausse pièce vs. date de naissance du jour) — même bouton,
+# libellé différent, pas de changement d'écran.
+- runFlow:
+    when:
+      visible: "Continuer quand même"
+    commands:
+      - tapOn:
+          id: "button-continue-step1"
+
+# --- Étape 2 : Tes spécialités ---
+# Contrairement à signup-participant.yaml ("Catégories préférées (max 5)"),
+# l'écran affiche "Tes spécialités" pour une organisatrice (voir
+# app/(auth)/sign-up-preferences.tsx) — on vérifie explicitement ce
+# libellé pour s'assurer que le rôle "Organisatrice" a bien été propagé
+# depuis l'étape 1.
+- assertVisible: "Tes spécialités"
+
+- tapOn:
+    id: "age-bracket-18-25"
+- tapOn: "Bar"
+- tapOn:
+    id: "link-dev-bypass-faceid"
+- assertVisible: "Face ID activé ✓"
+
+- tapOn:
+    id: "button-create-account"
+- assertVisible: "Compte créé avec succès.*"
+
+# --- Vérification : connexion avec le compte organisatrice tout juste créé ---
+# Après la création du compte, l'app déconnecte et renvoie vers l'écran de
+# connexion (choix produit explicite, voir sign-up-preferences.tsx) — on se
+# reconnecte avec les identifiants utilisés plus haut pour confirmer que le
+# rôle "organizer" et les spécialités sont bien persistés côté serveur.
+- tapOn:
+    id: "input-email"
+- inputText: "${SIGNUP_EMAIL}"
+- tapOn:
+    id: "input-password"
+- inputText: "${SIGNUP_PASSWORD}"
+- hideKeyboard
+- tapOn:
+    id: "button-sign-in"
+    optional: true
+# Dialogues système iOS best-effort après connexion (voir login.yaml) :
+# notifications push et proposition d'enregistrer le mot de passe.
+- tapOn:
+    text: "Autoriser"
+    optional: true
+- tapOn:
+    text: "Plus tard"
+    optional: true
+- assertVisible: "Communauté vérifiée.*"
+
+# Onglet Profil : affiche "Spécialités" (pas "Préférences") pour confirmer
+# que le profil a bien été créé avec le rôle "organizer" côté serveur —
+# c'est ce même insert de rôle qui déclenche le trigger SQL de création
+# automatique du canal (voir le commentaire en tête de ce fichier).
+- tapOn: "Profil.*"
+- assertVisible: "Spécialités"

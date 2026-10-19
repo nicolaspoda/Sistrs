@@ -1,0 +1,316 @@
+# Parcours de bout en bout : une organisatrice crée un événement, ajoute un
+# article à sa liste de courses, puis une participante le découvre dans le
+# fil d'accueil et s'y inscrit. Couvre l'item 2 du backlog "Flows Maestro
+# manquants" dans PROGRESS.md.
+#
+# Pas de lien "bypass Face ID" à taper lors de l'inscription à l'événement
+# (contrairement à la création de compte) : app/event/[id].tsx continue
+# déjà automatiquement si `authenticateAsync()` échoue, tant que
+# EXPO_PUBLIC_ENV n'est pas "production" (voir handleRegister) — rien à
+# faire côté flow, juste taper sur "S'inscrire" et attendre.
+#
+# Vérifie au passage :
+#  - que le nombre de places restantes affiché par app/event/[id].tsx
+#    passe bien de "2 places restantes sur 2" à "1 place restante sur 2"
+#    après l'inscription (max_participants fixé à 2 à la création pour que
+#    la bascule singulier/pluriel soit visible avec une seule inscrite) ;
+#  - que la liste de courses (section organisatrice uniquement) accepte un
+#    article ajouté par l'organisatrice avant que la participante ne
+#    s'inscrive.
+#
+# Bug trouvé et corrigé dans la même session (voir PROGRESS.md et le
+# commentaire dans app/event/create.tsx) : les dates par défaut des deux
+# calendriers (début / date limite d'inscription) étaient inversées, ce qui
+# faisait échouer la validation "au moins 24h avant le début" à chaque
+# création d'événement où les deux défauts étaient acceptés sans
+# modification — exactement ce que fait ce flow (comme les autres flows de
+# ce dossier, on garde les valeurs pré-sélectionnées plutôt que de piloter
+# le calendrier natif par coordonnées).
+#
+# Usage (emails uniques à chaque run pour éviter "compte déjà existant") :
+#   maestro test \
+#     --env ORGANIZER_EMAIL=test.e2e.organizer.$(date +%s)@example.com \
+#     --env ORGANIZER_PASSWORD=motdepasse123 \
+#     --env PARTICIPANT_EMAIL=test.e2e.participant.$(date +%s)@example.com \
+#     --env PARTICIPANT_PASSWORD=motdepasse123 \
+#     --env EVENT_TITLE="Soiree karaoke E2E $(date +%s)" \
+#     .maestro/event-create-and-register.yaml
+#
+# Prérequis : identiques à signup-participant.yaml/signup-organizer.yaml —
+# pellicule du Simulator avec au moins une photo, permission Photos déjà
+# accordée à l'app (les deux comptes passent par le raccourci développeur
+# pour la pièce d'identité, pas par le vrai sélecteur de photos natif).
+appId: com.nicolaspoda.sistrs
+---
+# === Compte organisatrice ===
+- launchApp:
+    clearState: true
+# Premier lancement après clearState : Metro doit resservir/recharger le
+# bundle JS, ce qui dépasse le délai d'attente implicite par défaut de
+# Maestro sur certaines machines — on attend explicitement plus longtemps.
+- extendedWaitUntil:
+    visible: "S'inscrire"
+    timeout: 30000
+- tapOn: "S'inscrire"
+
+# --- Étape 1 : Tes informations ---
+- tapOn:
+    id: "input-first-name"
+- inputText: "Nora"
+- tapOn:
+    id: "input-last-name"
+- inputText: "Dubois"
+- tapOn: "Tes informations"  # tap sur un texte statique pour fermer le clavier (hideKeyboard non fiable ici)
+
+# Date de naissance : on garde le défaut pré-sélectionné par l'app
+# ("aujourd'hui - 25 ans", toujours majeure) plutôt que de naviguer le
+# calendrier.
+- tapOn:
+    id: "input-birth-date"
+- tapOn: "Valider"
+
+- tapOn:
+    id: "input-email"
+- inputText: "${ORGANIZER_EMAIL}"
+# Voir le commentaire équivalent dans signup-participant.yaml : on bascule
+# les deux champs en "mot de passe visible" AVANT de taper quoi que ce
+# soit, Maestro/XCTest ne saisissant pas fiablement dans un champ
+# secureTextEntry actif.
+- tapOn:
+    id: "input-password-toggle-visibility"
+- tapOn:
+    id: "input-confirm-password-toggle-visibility"
+- tapOn:
+    id: "input-password"
+- inputText: "${ORGANIZER_PASSWORD}"
+- tapOn:
+    id: "input-confirm-password"
+- inputText: "${ORGANIZER_PASSWORD}"
+- tapOn: "Tes informations"  # tap sur un texte statique pour fermer le clavier (hideKeyboard non fiable ici)
+
+# "Participante" est le rôle par défaut : on doit explicitement sélectionner
+# "Organisatrice" ici.
+- tapOn:
+    id: "role-organizer"
+
+# --- Pièce d'identité ---
+# Raccourci développeur (voir signup-participant.yaml) plutôt que le vrai
+# sélecteur de photos natif (UI système non fiable à piloter par
+# coordonnées dans Maestro).
+- tapOn:
+    id: "link-dev-use-test-id"
+- assertVisible: "Pièce d'identité ajoutée ✓"
+- tapOn:
+    id: "button-continue-step1"
+
+# L'OCR peut renvoyer un avertissement si la date lue sur la pièce ne
+# correspond pas à la date de naissance saisie — même bouton, libellé
+# différent ("Continuer quand même"), pas de changement d'écran.
+- runFlow:
+    when:
+      visible: "Continuer quand même"
+    commands:
+      - tapOn:
+          id: "button-continue-step1"
+
+# --- Étape 2 : Tes spécialités ---
+- assertVisible: "Tes spécialités"
+- tapOn:
+    id: "age-bracket-18-25"
+- tapOn: "Bar"
+- tapOn:
+    id: "link-dev-bypass-faceid"
+- assertVisible: "Face ID activé ✓"
+
+- tapOn:
+    id: "button-create-account"
+- assertVisible: "Compte créé avec succès.*"
+
+# --- Connexion avec le compte organisatrice tout juste créé ---
+- tapOn:
+    id: "input-email"
+- inputText: "${ORGANIZER_EMAIL}"
+- tapOn:
+    id: "input-password"
+- inputText: "${ORGANIZER_PASSWORD}"
+- hideKeyboard
+- tapOn:
+    id: "button-sign-in"
+    optional: true
+# Dialogues système iOS best-effort après connexion : notifications push et
+# proposition d'enregistrer le mot de passe.
+- tapOn:
+    text: "Autoriser"
+    optional: true
+- tapOn:
+    text: "Plus tard"
+    optional: true
+- assertVisible: "Communauté vérifiée.*"
+
+# === Création de l'événement ===
+- tapOn:
+    id: "button-create-event"
+- assertVisible: "Créer un événement"
+
+- tapOn:
+    id: "input-event-title"
+- inputText: "${EVENT_TITLE}"
+- tapOn:
+    id: "input-event-description"
+- inputText: "Sortie generee automatiquement par la suite Maestro, pour verifier la creation d'evenement et l'inscription."
+- tapOn: "Créer un événement"  # tap sur un texte statique pour fermer le clavier
+
+- tapOn: "Bar"
+
+# On garde les valeurs par défaut pré-sélectionnées par l'app pour les deux
+# calendriers (après-demain 19h pour le début, demain 19h pour la date
+# limite — voir le commentaire sur defaultStartDate/defaultDeadlineDate
+# dans app/event/create.tsx : les deux étaient inversées avant cette
+# session, ce qui faisait toujours échouer la validation "au moins 24h
+# avant le début" quand on acceptait les défauts sans les changer, comme
+# on le fait volontairement ici plutôt que de piloter le calendrier natif).
+- tapOn:
+    id: "date-picker-event-start"
+- tapOn: "Valider"
+
+- tapOn:
+    id: "input-event-meeting-point"
+- inputText: "Bar Le Sistrs, 12 rue des Fleurs"
+- tapOn: "Créer un événement"  # ferme le clavier
+
+# Deux places seulement : avec une seule participante qui s'inscrit plus
+# bas, le texte passe de "2 places restantes" (pluriel) à "1 place
+# restante" (singulier) — assertion plus parlante qu'avec un grand nombre.
+- tapOn:
+    id: "input-event-max-participants"
+- inputText: "2"
+- tapOn: "Créer un événement"  # ferme le clavier
+
+- tapOn:
+    id: "date-picker-event-deadline"
+- tapOn: "Valider"
+
+- tapOn:
+    id: "button-publish-event"
+
+# La création réussie redirige directement vers le détail de l'événement
+# (router.replace dans handleSubmit) — on y est donc déjà, en tant
+# qu'organisatrice, sans être repassée par le fil d'accueil.
+- assertVisible: "${EVENT_TITLE}"
+- assertVisible: "2 places restantes sur 2"
+
+# --- Liste de courses (section visible uniquement par l'organisatrice) ---
+- tapOn:
+    id: "input-add-shopping-item"
+- inputText: "Chips et boissons"
+- hideKeyboard
+- tapOn:
+    id: "button-add-shopping-item"
+- assertVisible: "Chips et boissons"
+
+# --- Déconnexion de l'organisatrice ---
+- tapOn: "Profil.*"
+- tapOn:
+    id: "button-sign-out"
+# Alert.alert natif à deux boutons ("Annuler" / "Se déconnecter") — le
+# libellé "Se déconnecter" est aussi celui du bouton qui a ouvert cette
+# alerte, mais c'est bien le bouton de l'alerte (au-dessus dans la pile de
+# vues) qui reçoit ce deuxième tap.
+- tapOn: "Se déconnecter"
+- assertVisible: "S'inscrire"
+
+# === Compte participante ===
+- tapOn: "S'inscrire"
+
+- tapOn:
+    id: "input-first-name"
+- inputText: "Lea"
+- tapOn:
+    id: "input-last-name"
+- inputText: "Fabre"
+- tapOn: "Tes informations"
+
+- tapOn:
+    id: "input-birth-date"
+- tapOn: "Valider"
+
+- tapOn:
+    id: "input-email"
+- inputText: "${PARTICIPANT_EMAIL}"
+- tapOn:
+    id: "input-password-toggle-visibility"
+- tapOn:
+    id: "input-confirm-password-toggle-visibility"
+- tapOn:
+    id: "input-password"
+- inputText: "${PARTICIPANT_PASSWORD}"
+- tapOn:
+    id: "input-confirm-password"
+- inputText: "${PARTICIPANT_PASSWORD}"
+- tapOn: "Tes informations"
+
+# "Participante" est déjà le rôle par défaut, on le confirme explicitement.
+- tapOn:
+    id: "role-participant"
+
+- tapOn:
+    id: "link-dev-use-test-id"
+- assertVisible: "Pièce d'identité ajoutée ✓"
+- tapOn:
+    id: "button-continue-step1"
+- runFlow:
+    when:
+      visible: "Continuer quand même"
+    commands:
+      - tapOn:
+          id: "button-continue-step1"
+
+- tapOn:
+    id: "age-bracket-18-25"
+- tapOn: "Bar"
+- tapOn:
+    id: "link-dev-bypass-faceid"
+- assertVisible: "Face ID activé ✓"
+
+- tapOn:
+    id: "button-create-account"
+- assertVisible: "Compte créé avec succès.*"
+
+# --- Connexion avec le compte participante tout juste créé ---
+- tapOn:
+    id: "input-email"
+- inputText: "${PARTICIPANT_EMAIL}"
+- tapOn:
+    id: "input-password"
+- inputText: "${PARTICIPANT_PASSWORD}"
+- hideKeyboard
+- tapOn:
+    id: "button-sign-in"
+    optional: true
+- tapOn:
+    text: "Autoriser"
+    optional: true
+- tapOn:
+    text: "Plus tard"
+    optional: true
+- assertVisible: "Communauté vérifiée.*"
+
+# === Découverte et inscription à l'événement ===
+# L'événement créé plus haut a le start_at le plus proche parmi les
+# événements publiés d'ici (tri croissant sur start_at dans
+# app/(tabs)/index.tsx), donc il devrait déjà être visible sans scroller —
+# scrollUntilVisible reste prudent si jamais un autre événement planifié
+# plus tôt existe déjà (seed de données locales par exemple).
+- scrollUntilVisible:
+    element:
+      text: "${EVENT_TITLE}"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "${EVENT_TITLE}"
+
+- assertVisible: "2 places restantes sur 2"
+
+- tapOn:
+    id: "button-register-event"
+- assertVisible: "Inscrite ✓"
+- assertVisible: "1 place restante sur 2"

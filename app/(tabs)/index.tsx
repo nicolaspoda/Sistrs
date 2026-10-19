@@ -96,6 +96,7 @@ export default function AccueilScreen() {
         <View style={styles.headerActions}>
           {profile?.role === "organizer" ? (
             <TouchableOpacity
+              testID="button-create-event"
               style={styles.iconButton}
               onPress={() => router.push("/event/create")}
               activeOpacity={0.85}

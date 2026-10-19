@@ -239,6 +239,7 @@ export default function FriendsScreen() {
         {tabs.map((tab) => (
           <TouchableOpacity
             key={tab.key}
+            testID={`tab-${tab.key}`}
             style={[styles.tabButton, activeTab === tab.key && styles.tabButtonActive]}
             onPress={() => setActiveTab(tab.key)}
             activeOpacity={0.8}
@@ -284,6 +285,7 @@ export default function FriendsScreen() {
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity
+                  testID="button-decline-friend-request"
                   style={[styles.smallButton, styles.smallButtonOutline]}
                   onPress={() => handleDecline(item)}
                   disabled={actioningId === item.id}
