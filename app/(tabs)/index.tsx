@@ -13,6 +13,7 @@ import { supabase } from "../../lib/supabase";
 
 const EVENT_SELECT = `
   *,
+  confirmed_count:event_confirmed_count,
   category:categories(id, name, emoji, created_at),
   channel:channels(id, organizer_id, organizer:profiles!channels_organizer_id_fkey(id, first_name, last_name, avatar_url)),
   registrations:event_registrations(id, status, participant_id, participant:profiles(id, first_name, last_name, avatar_url))

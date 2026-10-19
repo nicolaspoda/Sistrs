@@ -163,12 +163,12 @@ export default function ChannelDetailScreen() {
     const [{ data: postsData, error: postsError }, { data: pollsData, error: pollsError }] = await Promise.all([
       supabase
         .from("channel_posts")
-        .select("id, created_at, content, image_url, event_id")
+        .select("id, created_at, content, image_url, event_id, likes_count:channel_post_likes_count")
         .eq("channel_id", id)
         .order("created_at", { ascending: false }),
       supabase
         .from("polls")
-        .select("id, created_at, question, poll_options(id, label, position)")
+        .select("id, created_at, question, poll_options(id, label, position, votes_count:poll_option_votes_count)")
         .eq("channel_id", id)
         .order("created_at", { ascending: false }),
     ]);
@@ -193,10 +193,18 @@ export default function ChannelDetailScreen() {
         : Promise.resolve({ data: [], error: null }),
     ]);
 
+    // Depuis le resserrement RLS du 2026-10-19, `channel_post_likes` et
+    // `poll_votes` ne renvoient plus que les lignes de l'utilisatrice
+    // courante (son propre like/vote) — nécessaire pour `likedByMe`/
+    // `myVoteOptionId` ci-dessous, mais plus pour un comptage total par
+    // `.length`. Les compteurs exacts viennent des fonctions SQL
+    // `channel_post_likes_count` / `poll_option_votes_count` (ci-dessus,
+    // `likes_count` / `votes_count`), qui contournent volontairement cette
+    // restriction sans exposer d'identité.
     const likesData = likesResult.data ?? [];
     const votesData = votesResult.data ?? [];
 
-    const postItems: PostItem[] = posts.map((post) => {
+    const postItems: PostItem[] = posts.map((post: any) => {
       const likesForPost = likesData.filter((like: any) => like.post_id === post.id);
       return {
         kind: "post",
@@ -205,7 +213,7 @@ export default function ChannelDetailScreen() {
         content: post.content,
         image_url: post.image_url,
         event_id: post.event_id,
-        likesCount: likesForPost.length,
+        likesCount: typeof post.likes_count === "number" ? post.likes_count : likesForPost.length,
         likedByMe: Boolean(profile && likesForPost.some((like: any) => like.profile_id === profile.id)),
       };
     });
@@ -218,7 +226,10 @@ export default function ChannelDetailScreen() {
           id: option.id,
           label: option.label,
           position: option.position,
-          votesCount: votesData.filter((vote: any) => vote.option_id === option.id).length,
+          votesCount:
+            typeof option.votes_count === "number"
+              ? option.votes_count
+              : votesData.filter((vote: any) => vote.option_id === option.id).length,
         }));
 
       const myVote = profile

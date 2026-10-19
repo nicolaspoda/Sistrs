@@ -9,7 +9,11 @@ import { Avatar } from "../Avatar";
 // Événement enrichi des jointures nécessaires à l'affichage (fil d'accueil
 // et détail). Toutes les relations sont optionnelles côté type car elles
 // dépendent des policies RLS (ex. `registrations` peut être une liste
-// partielle selon qui interroge).
+// partielle selon qui interroge : depuis la migration RLS du 2026-10-19,
+// seules l'organisatrice et les inscrites d'un même événement voient la
+// liste détaillée des autres inscrites — tout le monde garde en revanche
+// un compteur exact via `confirmed_count`, cf. fonction SQL
+// `event_confirmed_count`, qui contourne volontairement cette restriction).
 export type EventWithDetails = Event & {
   category: Pick<Category, "id" | "name" | "emoji"> | null;
   channel:
@@ -24,6 +28,7 @@ export type EventWithDetails = Event & {
         participant?: Pick<Profile, "id" | "first_name" | "last_name" | "avatar_url"> | null;
       })[]
     | null;
+  confirmed_count?: number | null;
 };
 
 export function organizerFullName(event: EventWithDetails): string {
@@ -88,7 +93,11 @@ export function EventCard({ event, onPress }: EventCardProps) {
   const { profile } = useAuth();
   const registrations = event.registrations ?? [];
   const confirmedRegistrations = registrations.filter((r) => r.status === "confirmed");
-  const confirmedCount = confirmedRegistrations.length;
+  // `confirmed_count` (fonction SQL exacte, non filtrée par RLS) prime sur un
+  // simple `.length` de `registrations`, qui peut être une liste partielle
+  // pour une utilisatrice sans lien avec cet événement.
+  const confirmedCount =
+    typeof event.confirmed_count === "number" ? event.confirmed_count : confirmedRegistrations.length;
   const spotsLeft = Math.max(event.max_participants - confirmedCount, 0);
   const isFull = spotsLeft <= 0;
   const deadlinePassed = Date.now() >= new Date(event.registration_deadline).getTime();

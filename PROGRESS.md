@@ -7,76 +7,56 @@
 > `PROGRESS_ARCHIVE.md` (déplacé là pour garder ce fichier court — le lire
 > seulement si un détail précis d'une session passée est nécessaire).
 
-Dernière mise à jour : 2026-10-19 (flow Maestro channel-discover-subscribe
-écrit — résout le blocage signalé par un run concurrent, voir note
-ci-dessous —, flow signup-ocr-mismatch-warning écrit, et test de
-composant EventLocationMap écrit ; trois runs concurrents distincts,
-demandes séparées ; sessions précédentes archivées dans
-PROGRESS_ARCHIVE.md)
+Dernière mise à jour : 2026-10-19 (RLS resserrée — item "RLS à revisiter"
+traité ce run ; trois runs concurrents précédents — channel-discover-
+subscribe, signup-ocr-mismatch-warning, test EventLocationMap — détail
+complet archivé dans PROGRESS_ARCHIVE.md)
 
-## Fait récemment (détail complet dans l'archive)
+## Fait (session pipeline autonome — resserrement RLS)
 
-- **`components/__tests__/EventLocationMap.test.tsx` écrit** (ce run
-  concurrent, demande séparée) : 3 cas avec `@rnmapbox/maps` mocké
-  (montage OK, coordonnées bien transmises, repli propre si token Mapbox
-  absent). **Infra de test ajoutée from scratch** (jest/jest-expo/RTL,
-  `npm test`) — versions choisies au jugé, **jamais exécutées pour de
-  vrai** (`npm install` toujours bloqué dans ce sandbox, DNS
-  `registry.npmjs.org` inatteignable). Ne remplace pas la vérification
-  visuelle manuelle de la carte. Détail complet dans PROGRESS_ARCHIVE.md.
-- **`channel-discover-subscribe.yaml`** (ce run) : la tâche visait la
-  section "Découvrir" de `app/(tabs)/channels.tsx`, supprimée
-  délibérément le 2026-09-28 (commit `231879e`) — la découverte de canaux
-  se fait désormais via les publications/profils des organisatrices. Flow
-  adapté au vrai parcours actuel : Amies > profil de l'organisatrice >
-  "Voir son canal" > abonnement explicite (`button-toggle-follow-channel`,
-  testID manquant ajouté sur `app/channel/[id].tsx`) > vérification dans
-  l'onglet "Canaux". Réutilise le setup de `channel-post-and-poll.yaml`
-  via `runFlow`. Détail complet dans PROGRESS_ARCHIVE.md.
-- Flows Maestro `poll-revote.yaml` (changement de vote sur sondage) et
-  `decline-friend-request.yaml` (refus de demande d'amitié) écrits, jamais
-  exécutés pour de vrai (pas de Mac/Simulator connecté).
+- **`supabase/migrations/20261019000000_tighten_rls_policies.sql`** :
+  resserre les 3 fuites de l'item "RLS à revisiter" (lecture `using (true)`
+  trop large sur `profiles`, `event_registrations`,
+  `channel_post_likes`/`poll_votes`). Nouveau modèle documenté dans
+  `CLAUDE.md` § "RLS — modèle de confidentialité" : profils visibles pour
+  soi-même/amies/organisatrices/personnes partageant un événement ; liste
+  des inscrites à un événement limitée à l'organisatrice + les autres
+  inscrites de ce même événement ; likes/votes limités à sa propre ligne.
+  3 fonctions SQL `security definer` (`event_confirmed_count`,
+  `channel_post_likes_count`, `poll_option_votes_count`) gardent les
+  compteurs exacts pour tout le monde (places restantes, nb de likes, % de
+  votes) sans exposer d'identité, en "computed columns" PostgREST.
+- **Vérifié avant resserrement** (grep de toutes les requêtes Supabase
+  concernées) : aucun écran ne liste tous les profils (seule la recherche
+  d'amies fait un select large par nom — se resserre logiquement, effet
+  recherché). Code ajusté dans `app/(tabs)/index.tsx`, `app/event/[id].tsx`,
+  `app/channel/[id].tsx`, `components/events/EventCard.tsx` pour consommer
+  les colonnes calculées au lieu de `.length` sur des listes désormais
+  potentiellement partielles (liste détaillée des inscrites/avis : partielle
+  pour qui n'a aucun lien avec l'événement — effet recherché ; compteurs :
+  toujours exacts).
+- **Validation** : pas de projet Supabase réel provisionné (`.env` vide) —
+  migration jamais appliquée pour de vrai, vérifiée statiquement seulement.
+  `tsc` sur les 4 fichiers app modifiés : aucune erreur propre au code
+  modifié. **À surveiller en premier si problème après déploiement** : la
+  syntaxe "computed column" PostgREST (`alias:nom_fonction`) n'a pas pu
+  être testée contre un vrai PostgREST.
+
+## Fait récemment — runs concurrents (détail complet dans l'archive)
+
+- `channel-discover-subscribe.yaml` : découverte de canaux via le profil
+  de l'organisatrice (section "Découvrir" supprimée le 2026-09-28) ;
+  testID `button-toggle-follow-channel` ajouté.
+- `signup-ocr-mismatch-warning.yaml`, `poll-revote.yaml`,
+  `decline-friend-request.yaml` : écrits, jamais exécutés pour de vrai.
 - `store/privacy-policy.md` et `store/app-store-listing.md` écrits
   (brouillons, à faire relire par un juriste). Aucun compte développeur
   payant créé.
-- **Vérification trigger push `trg_push_new_notification`** (demandée
-  séparément) : base Supabase du projet `sistrs` entièrement vide (0 profil,
-  0 notification) → aucun `push_token` disponible pour tester par insertion
-  réelle, et inventer un faux profil/token était explicitement exclu par la
-  consigne. Vérifié par inspection statique seulement : trigger présent et
-  activé, extension `pg_net` installée, `net._http_response` à 0 ligne
-  (cohérent avec l'absence de données, pas un signe de panne). **À refaire**
-  dès qu'un profil réel (ou démo légitime) avec `push_token` existera.
-- **Validation `channel-discover-subscribe.yaml`** : pas d'exécution réelle
-  (pas de Mac/Simulator connecté à cette session) — validation statique
-  uniquement (`bash -n` sur `run-maestro-suite.sh`, parsing YAML avec
-  PyYAML, `tsc` partiel sur `app/channel/[id].tsx`), tout OK.
-
-## Note : blocage channel-discover-subscribe résolu (run concurrent)
-
-Un run concurrent de cette même session avait diagnostiqué le même
-problème (section "Découvrir" absente du code, voir diagnostic détaillé
-dans PROGRESS_ARCHIVE.md) et s'était arrêté sans écrire de flow, listant
-trois options pour l'utilisateur. Ce run-ci a choisi l'option (b) de ce
-diagnostic — réécrire le flow pour coller au chemin UI réel de découverte
-(profil organisatrice, comme `channel-post-and-poll.yaml`) plutôt que
-d'attendre une décision produit — et l'a écrit avec succès (voir
-`.maestro/channel-discover-subscribe.yaml` et l'entrée "Fait récemment"
-ci-dessus). Si l'utilisateur préfère l'option (a) (une vraie section
-"Découvrir" dans l'onglet Canaux), ce flow restera valide comme test du
-chemin découverte-via-profil, et un flow supplémentaire pourrait couvrir
-la nouvelle section le cas échéant.
-
-## Fait (session pipeline autonome — flow signup-ocr-mismatch-warning)
-
-- **`.maestro/signup-ocr-mismatch-warning.yaml` écrit** (détail complet
-  dans PROGRESS_ARCHIVE.md) : avertissement OCR non bloquant à
-  l'inscription en cas de nom/prénom ne correspondant pas à la pièce
-  d'identité uploadée — nom volontairement différent de celui de la
-  fausse carte de test pour forcer le mismatch de façon déterministe,
-  avertissement vérifié, bypass au second appui vérifié. Ajouté à
-  `scripts/run-maestro-suite.sh`. Jamais exécuté pour de vrai (pas de
-  Mac/Simulator connecté).
+- Trigger push `trg_push_new_notification` vérifié par inspection statique
+  (base Supabase vide, pas de `push_token` réel pour tester en conditions
+  réelles) — à refaire dès qu'un profil réel existera.
+- `components/__tests__/EventLocationMap.test.tsx` : infra de test ajoutée
+  from scratch (jest/jest-expo/RTL), jamais exécutée (`npm install` bloqué).
 
 ## Repères opérationnels essentiels (voir archive pour le détail)
 
@@ -105,13 +85,13 @@ la nouvelle section le cas échéant.
 ## En cours / à faire ensuite
 
 1. **Tests fonctionnels manuels** (utilisateur, sur le Mac, development
-   build) : flux complet, y compris "Mes événements passés" depuis Profil.
+   build) : flux complet, y compris "Mes événements passés" depuis Profil,
+   et vérifier le nouveau comportement RLS (listes d'inscrites/avis
+   partielles selon le lien avec l'événement).
 2. **Écrans Figma manquants** : accueil/fil, détail événement, création
    événement, canal individuel, messagerie, profils (quota API Figma MCP
    atteint en cours de route, jamais repris).
-3. **RLS à revisiter** : policies actuelles privilégient la simplicité
-   (lecture large aux authentifiées) plutôt qu'une confidentialité stricte.
-4. **Backlog "prêt pour le store"** : contenu texte fait (`store/`, détail
+3. **Backlog "prêt pour le store"** : contenu texte fait (`store/`, détail
    dans PROGRESS_ARCHIVE.md). Reste : relecture juridique de la politique de
    confidentialité, hébergement à une URL publique, captures d'écran et
    visuels, et — seulement sur confirmation explicite de l'utilisateur —

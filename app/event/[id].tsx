@@ -32,6 +32,7 @@ import type { EventReview, EventShoppingListItem } from "../../lib/types";
 
 const EVENT_SELECT = `
   *,
+  confirmed_count:event_confirmed_count,
   category:categories(id, name, emoji, created_at),
   channel:channels(id, organizer_id, organizer:profiles!channels_organizer_id_fkey(id, first_name, last_name, avatar_url)),
   registrations:event_registrations(id, status, participant_id, participant:profiles(id, first_name, last_name, avatar_url))
@@ -195,7 +196,14 @@ export default function EventDetailScreen() {
 
   const registrations = (event.registrations as unknown as RegistrationWithProfile[] | null) ?? [];
   const confirmedRegistrations = registrations.filter((registration) => registration.status === "confirmed");
-  const confirmedCount = confirmedRegistrationsCount(event.registrations);
+  // `confirmed_count` (fonction SQL, non filtrée par RLS) prime sur un calcul
+  // à partir de `registrations`, qui peut être une liste partielle depuis le
+  // resserrement RLS du 2026-10-19 pour une utilisatrice sans lien avec cet
+  // événement.
+  const confirmedCount =
+    typeof event.confirmed_count === "number"
+      ? event.confirmed_count
+      : confirmedRegistrationsCount(event.registrations);
   const spotsLeft = Math.max(event.max_participants - confirmedCount, 0);
   const isFull = spotsLeft <= 0;
   const deadlinePassed = new Date() >= new Date(event.registration_deadline);

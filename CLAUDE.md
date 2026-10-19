@@ -72,6 +72,38 @@ importante).
   d'engagement minimum) — voir `PROGRESS.md` pour le contexte de cette
   recherche.
 
+### RLS — modèle de confidentialité (depuis la migration du 2026-10-19)
+
+Les policies RLS initiales (`20260928010000_rls_and_triggers.sql`)
+privilégiaient la simplicité (`using (true)` pour la plupart des SELECT).
+`20261019000000_tighten_rls_policies.sql` resserre les 3 fuites identifiées
+dans `PROGRESS.md` :
+
+- **`profiles`** : visible uniquement pour soi-même, ses amies (demande en
+  attente ou acceptée, dans les deux sens), les organisatrices (un canal =
+  une organisatrice, semi-publique par nature de l'app) et les personnes
+  partageant un événement (inscrite au même événement, ou événement
+  qu'on organise). La recherche d'amies (`app/(tabs)/friends.tsx`) est donc
+  désormais bornée à ces mêmes personnes — plus de recherche par nom sur
+  toute la base.
+- **`event_registrations`** : la liste détaillée des inscrites à un
+  événement n'est visible que par l'organisatrice et par les autres
+  inscrites à ce même événement ; une utilisatrice non inscrite ne voit
+  que sa propre ligne (aucune, si elle n'est pas inscrite).
+- **`channel_post_likes` / `poll_votes`** : lecture limitée à son propre
+  like/vote (nécessaire pour l'état "ai-je liké/voté").
+
+Pour ne pas casser les écrans qui affichaient des **compteurs** calculés à
+partir de ces listes désormais partielles (places restantes sur un
+événement, nombre de likes, % de votes par option), 3 fonctions SQL
+`security definer` (qui contournent volontairement RLS, sans jamais
+exposer d'identité, seulement un entier) sont utilisées comme "computed
+columns" PostgREST dans les `select()` concernés :
+`event_confirmed_count`, `channel_post_likes_count`,
+`poll_option_votes_count`. Les listes détaillées (avatars des inscrites,
+qui a aimé/voté) peuvent, elles, légitimement être partielles ou vides
+selon le lien de l'utilisatrice avec le contenu — c'est l'effet recherché.
+
 ## Modèle de données
 
 Le schéma SQL complet (tables, enums, contraintes, index) vit dans
