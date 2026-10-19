@@ -5,8 +5,35 @@
 > entier avant de reprendre le travail, surtout après un changement de
 > compte/session Claude Code.
 
-Dernière mise à jour : 2026-10-19 (session : projet Supabase cloud provisionné,
-pipeline de développement autonome mis en place)
+Dernière mise à jour : 2026-10-19 (session : flow Maestro signup-organizer)
+
+## Fait (session flow Maestro signup-organizer, run automatique)
+
+- **`signup-organizer.yaml`** (item 1 du backlog "Flows Maestro manquants"
+  ci-dessous) : inscription complète côté organisatrice (sélection du rôle,
+  spécialités sans la limite à 5 des préférences participante, bypass Face
+  ID dev), puis connexion avec le compte tout juste créé. Vérification du
+  rôle "organizer" et de la création auto du canal (trigger
+  `trg_ensure_organizer_channel`) faite **indirectement** via l'UI :
+  atteindre le bouton "+" (testID `button-create-event`, ajouté à
+  `app/(tabs)/index.tsx` — n'en avait pas) puis l'écran de création
+  d'événement, les deux n'étant accessibles que si `profile.role ===
+  "organizer"`. Une vérification directe (requête SQL, ou soumission
+  complète du formulaire de création d'événement qui interroge vraiment la
+  table `channels`) est laissée au flow suivant du backlog,
+  `event-create-and-register.yaml`, pour ne pas dupliquer son périmètre.
+  Flow ajouté à `scripts/run-maestro-suite.sh`. PR :
+  https://github.com/nicolaspoda/Sistrs/pull/6 (branche
+  `feat/signup-organizer-maestro-flow`, pas encore mergée — CI à suivre).
+  **Note dépôt** : GitHub signale que `nicolaspoda/sistrs` a été déplacé
+  vers `nicolaspoda/Sistrs` (casse différente) — à garder en tête pour les
+  prochains runs (remote `origin` encore configuré sur l'ancienne casse,
+  la redirection GitHub fonctionne pour l'instant).
+  **Accès Mac** : `connectedFolders` est remonté vide par `get_device_info`
+  pendant ce run (malgré le dossier annoncé comme connecté dans le prompt)
+  — Mac/app desktop probablement pas disponible au moment du déclenchement.
+  Aucun test E2E réel n'a donc été tenté ce run ; uniquement la tâche de
+  dev (écriture du flow), qui n'en a pas besoin.
 
 ## Fait (session Supabase cloud + pipeline autonome)
 
@@ -302,8 +329,10 @@ lancer localement à la fin de cette section.
   l'app entière, pas seulement signup/login/smoke navigation déjà
   existants) — à traiter comme des tâches de dev normales, dans cet ordre
   de priorité suggéré :
-  1. `signup-organizer.yaml` — inscription côté organisatrice (rôle
-     `organizer`, création auto du canal).
+  1. ~~`signup-organizer.yaml`~~ **fait le 2026-10-19** (voir section
+     "Fait (session flow Maestro signup-organizer...)" plus haut) —
+     inscription côté organisatrice (rôle `organizer`, vérification
+     indirecte de la création auto du canal).
   2. `event-create-and-register.yaml` — création d'événement
      (organisatrice) + découverte/inscription réelle (participante,
      Face ID dev bypass) + vérif liste de courses/places restantes.
