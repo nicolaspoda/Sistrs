@@ -5,8 +5,9 @@
 > entier avant de reprendre le travail, surtout après un changement de
 > compte/session Claude Code.
 
-Dernière mise à jour : 2026-10-19 (session : flow Maestro event-create-and-register
-ajouté, bug des dates par défaut de création d'événement corrigé)
+Dernière mise à jour : 2026-10-19 (session : flows Maestro signup-organizer
+et event-create-and-register ajoutés, bug des dates par défaut de création
+d'événement corrigé)
 
 ## Fait (session pipeline autonome — 2e run réel)
 
@@ -64,6 +65,43 @@ ajouté, bug des dates par défaut de création d'événement corrigé)
   donc non tentée à nouveau ce run, pour la même raison qu'au run
   précédent — pas de changement côté utilisateur depuis. Le marqueur
   "Dernier run E2E vert" reste donc inchangé.
+
+## Fait (session pipeline autonome — 1er run réel)
+
+- **Repo renommé `sistrs` → `Sistrs`** côté GitHub (`nicolaspoda/Sistrs`) ;
+  remote local du clone cloud mis à jour en conséquence.
+- **`.maestro/signup-organizer.yaml` écrit** (item 1 du backlog "Flows
+  Maestro manquants" ci-dessous) : inscription complète côté organisatrice
+  (rôle `organizer`, pièce d'identité via raccourci dev, étape "Tes
+  spécialités" sans limite à 5 contrairement aux préférences participante,
+  bypass Face ID dev), puis reconnexion avec le compte tout juste créé et
+  vérification que l'onglet Profil affiche "Spécialités" — confirme que le
+  rôle et les spécialités sont bien persistés côté serveur (ce même insert
+  de rôle déclenche aussi le trigger SQL `ensure_organizer_channel`, non
+  observable directement dans l'UI puisque l'organisatrice n'est pas
+  auto-abonnée à son propre canal — voir le commentaire en tête du fichier
+  pour le détail). Ajouté à `scripts/run-maestro-suite.sh` avec son propre
+  compte de test généré, indépendant de `signup-participant.yaml`.
+  Validation faite ici : les deux documents YAML de chaque flow (config +
+  liste de commandes) parsent correctement (`pyyaml`), et le script a été
+  testé en isolation avec un faux binaire `maestro` pour vérifier le
+  câblage (variables d'env, répartition des flows) — **le flow n'a en
+  revanche pas pu être exécuté sur un vrai Simulator** (voir point
+  suivant), donc il reste à valider pour de vrai au prochain run si le Mac
+  est disponible.
+- **Mac joignable mais aucun dossier connecté à cette session** :
+  `get_device_info` répond (Mac allumé/déverrouillé, app Claude desktop
+  ouverte), mais `connectedFolders` est vide — contrairement à ce qui
+  était attendu, le dossier du projet n'était pas déjà connecté à cette
+  session planifiée. Sans dossier connecté, `device_bash` ne peut pas
+  opérer dans le dossier du projet, donc aucune étape nécessitant le Mac
+  (Simulator, Metro, Maestro, identifiants de seed) n'a pu être tentée ce
+  run — branche B (test E2E) non exécutée pour cette raison, pas par choix
+  (le marqueur "Dernier run E2E vert" reste donc inchangé, voir plus bas).
+  **Action utilisateur suggérée** : connecter le dossier du projet à la
+  tâche planifiée (dans les réglages de la tâche planifiée côté app Claude
+  desktop) pour que les prochains runs puissent réellement piloter le
+  Simulator.
 
 ## Fait (session Supabase cloud + pipeline autonome)
 
@@ -359,10 +397,10 @@ lancer localement à la fin de cette section.
   l'app entière, pas seulement signup/login/smoke navigation déjà
   existants) — à traiter comme des tâches de dev normales, dans cet ordre
   de priorité suggéré :
-  1. `signup-organizer.yaml` — inscription côté organisatrice (rôle
-     `organizer`, création auto du canal). **Écrit, PR #2 ouverte, pas
-     encore mergée au moment d'écrire ceci** — pas encore exécuté pour de
-     vrai sur Simulator (Mac non connecté lors de ce run-là non plus).
+  1. ~~`signup-organizer.yaml`~~ **fait le 2026-10-19** (voir section
+     "Fait (session pipeline autonome — 1er run réel)" plus haut) — écrit
+     et câblé dans le script, pas encore exécuté pour de vrai sur
+     Simulator (Mac non connecté à ce run, voir plus haut).
   2. ~~`event-create-and-register.yaml`~~ **fait le 2026-10-19** (voir
      section "Fait (session pipeline autonome — 2e run réel)" plus haut) —
      écrit et câblé dans le script, pas encore exécuté pour de vrai sur
