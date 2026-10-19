@@ -1,0 +1,62 @@
+# Vérifie le CHANGEMENT de vote sur un sondage de canal : contrairement à
+# channel-post-and-poll.yaml (item 5 du backlog "Flows Maestro manquants"
+# dans PROGRESS.md), qui ne teste que le PREMIER vote d'une participante,
+# ce flow vérifie qu'elle peut ensuite changer d'avis — le vote se déplace
+# bien de l'ancienne option vers la nouvelle (ancienne option repassée à
+# 0 %, nouvelle option à 100 %, total de votes toujours à 1, jamais 2).
+#
+# Réutilise tel quel le setup de channel-post-and-poll.yaml (organisatrice
+# et participante devenues amies, canal avec post + sondage créés,
+# participante connectée sur l'écran du canal et ayant déjà voté "Un
+# karaoke") via runFlow plutôt que de le dupliquer intégralement.
+#
+# Pas de testID dédié sur les options de sondage affichées (seuls les
+# champs de CRÉATION d'un sondage en ont, voir input-poll-option-N) : on
+# tape donc sur le libellé de l'option comme channel-post-and-poll.yaml le
+# fait déjà, et on vérifie le pourcentage affiché à côté de chaque libellé
+# (poll.tsx : pollOptionContent est en flexDirection row, le pourcentage
+# est donc bien à droite du libellé — d'où le sélecteur relatif "rightOf")
+# plutôt que le total "X votes" du pied du sondage, qui ne bouge pas d'une
+# option à l'autre tant qu'il n'y a qu'une seule votante.
+#
+# Usage (emails uniques à chaque run pour éviter "compte déjà existant") :
+#   maestro test \
+#     --env ORGANIZER_EMAIL=test.e2e.revote.org.$(date +%s)@example.com \
+#     --env ORGANIZER_PASSWORD=motdepasse123 \
+#     --env PARTICIPANT_EMAIL=test.e2e.revote.part.$(date +%s)@example.com \
+#     --env PARTICIPANT_PASSWORD=motdepasse123 \
+#     .maestro/poll-revote.yaml
+#
+# Prérequis : identiques à channel-post-and-poll.yaml (pellicule du
+# Simulator avec au moins une photo, permission Photos déjà accordée).
+appId: com.nicolaspoda.sistrs
+---
+- runFlow:
+    file: channel-post-and-poll.yaml
+    env:
+      ORGANIZER_EMAIL: "${ORGANIZER_EMAIL}"
+      ORGANIZER_PASSWORD: "${ORGANIZER_PASSWORD}"
+      PARTICIPANT_EMAIL: "${PARTICIPANT_EMAIL}"
+      PARTICIPANT_PASSWORD: "${PARTICIPANT_PASSWORD}"
+
+# === État de départ (fin de channel-post-and-poll.yaml) ===
+# La participante est connectée, sur l'écran du canal de l'organisatrice,
+# et vient de voter pour "Un karaoke" : 1 vote au total, "Un karaoke" à
+# 100 %, "Un bar a cocktails" à 0 %.
+- assertVisible: "1 vote"
+- assertVisible:
+    text: "100%"
+    rightOf: "Un karaoke"
+- assertVisible:
+    text: "0%"
+    rightOf: "Un bar a cocktails"
+
+# === Changement de vote vers l'autre option ===
+- tapOn: "Un bar a cocktails"
+- assertVisible: "1 vote"  # toujours une seule voix au total, jamais deux
+- assertVisible:
+    text: "100%"
+    rightOf: "Un bar a cocktails"
+- assertVisible:
+    text: "0%"
+    rightOf: "Un karaoke"

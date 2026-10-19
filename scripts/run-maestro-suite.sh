@@ -11,9 +11,9 @@
 #   smoke_navigation.yaml et event-review.yaml sont sautés ;
 #   signup-participant.yaml, signup-organizer.yaml,
 #   event-create-and-register.yaml, friend-request-flow.yaml,
-#   messaging-send.yaml, channel-post-and-poll.yaml et notifications.yaml
-#   tournent dans tous les cas, chacun avec ses propres comptes générés à
-#   la volée)
+#   messaging-send.yaml, channel-post-and-poll.yaml, poll-revote.yaml et
+#   notifications.yaml tournent dans tous les cas, chacun avec ses propres
+#   comptes générés à la volée)
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -65,6 +65,18 @@ CHANNEL_ORGANIZER_EMAIL="test.e2e.channel.org.$(date +%s)@example.com"
 CHANNEL_ORGANIZER_PASSWORD="motdepasse123"
 CHANNEL_PARTICIPANT_EMAIL="test.e2e.channel.part.$(date +%s)@example.com"
 CHANNEL_PARTICIPANT_PASSWORD="motdepasse123"
+
+# Identifiants dédiés à poll-revote.yaml (deux comptes, organisatrice +
+# participante) — un suffixe "revote.org"/"revote.part" pour rester unique
+# même si ce script tourne deux fois dans la même seconde que les
+# variables ci-dessus. Ce flow réutilise channel-post-and-poll.yaml via
+# runFlow pour son setup : des comptes dédiés évitent toute interférence
+# avec le run de channel-post-and-poll.yaml plus haut dans cette même
+# suite.
+REVOTE_ORGANIZER_EMAIL="test.e2e.revote.org.$(date +%s)@example.com"
+REVOTE_ORGANIZER_PASSWORD="motdepasse123"
+REVOTE_PARTICIPANT_EMAIL="test.e2e.revote.part.$(date +%s)@example.com"
+REVOTE_PARTICIPANT_PASSWORD="motdepasse123"
 
 # Identifiants dédiés à notifications.yaml (deux comptes, destinataire +
 # expéditrice de la demande d'amitié qui déclenche la notification) — un
@@ -151,6 +163,12 @@ run_flow "channel-post-and-poll.yaml" \
   --env ORGANIZER_PASSWORD="$CHANNEL_ORGANIZER_PASSWORD" \
   --env PARTICIPANT_EMAIL="$CHANNEL_PARTICIPANT_EMAIL" \
   --env PARTICIPANT_PASSWORD="$CHANNEL_PARTICIPANT_PASSWORD"
+
+run_flow "poll-revote.yaml" \
+  --env ORGANIZER_EMAIL="$REVOTE_ORGANIZER_EMAIL" \
+  --env ORGANIZER_PASSWORD="$REVOTE_ORGANIZER_PASSWORD" \
+  --env PARTICIPANT_EMAIL="$REVOTE_PARTICIPANT_EMAIL" \
+  --env PARTICIPANT_PASSWORD="$REVOTE_PARTICIPANT_PASSWORD"
 
 run_flow "notifications.yaml" \
   --env RECIPIENT_EMAIL="$NOTIF_RECIPIENT_EMAIL" \

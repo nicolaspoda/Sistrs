@@ -5,6 +5,54 @@
 > d'~50 lignes). Les décisions encore actives et le backlog courant restent
 > dans `PROGRESS.md`; ce fichier est pour archive/contexte seulement.
 
+## Fait (session pipeline autonome — flow cancel-registration)
+
+- **`.maestro/cancel-registration.yaml` écrit** : flow qui n'était PAS dans le
+  backlog "Flows Maestro manquants" (déjà entièrement fait, items 1-8), mais
+  une demande séparée de l'utilisateur. Il crée ses propres comptes (une
+  organisatrice et une participante, générés à la volée) et un événement
+  limité à 2 places. La participante s'inscrit, puis annule via
+  `button-cancel-registration`. Le flow vérifie que le compteur revient à "2
+  places restantes sur 2" et que `button-register-event` réapparaît après
+  l'annulation. Ajouté à `scripts/run-maestro-suite.sh` dans un bloc `run_flow
+  "cancel-registration.yaml"` avec ses propres variables
+  `CANCEL_ORGANIZER_EMAIL`/`CANCEL_PARTICIPANT_EMAIL`/`CANCEL_EVENT_TITLE`,
+  indépendant des autres flows.
+- **Validation effectuée** : pas d'exécution réelle (pas de Mac/Simulator
+  connecté à cette session) — validation statique uniquement (`bash -n` sur
+  `run-maestro-suite.sh`, parsing YAML du nouveau flow avec PyYAML), les deux
+  OK.
+
+## Fait (session — écran "Mes événements passés")
+
+- **Manque produit comblé** (identifié le 2026-10-19 en écrivant
+  `.maestro/event-review.yaml`) : avant cet écran, le seul moyen d'atteindre
+  le détail d'un événement déjà terminé pour y laisser un avis était de
+  taper sur une notification qui le référence — impossible si cette
+  notification n'existe plus. Nouvel écran `app/past-events.tsx` (route
+  `/past-events`), accessible via un nouveau bouton "Mes événements passés"
+  sur l'onglet Profil (`button-past-events` dans `app/(tabs)/profile.tsx`).
+  Liste les événements où l'inscription de la participante est
+  **confirmée** et dont `start_at < now()`, triés du plus récent au plus
+  ancien, avec accès au détail de chacun (où se trouve déjà le formulaire
+  d'avis).
+- **Requête Supabase** : `events` jointe à `event_registrations!inner`
+  (transforme la relation en filtre) avec `.eq("registration.participant_id",
+  profile.id)` + `.eq("registration.status", "confirmed")` +
+  `.lt("start_at", nowIso)` — jamais un événement à venir, jamais une
+  inscription en attente/annulée. Les notes de la participante déjà
+  envoyées (`event_reviews`) sont chargées à part (par liste d'event_id) et
+  affichées en aperçu sur chaque ligne ("Avis envoyé" / "Laisser un avis").
+- **Tests faits** : `tsc` isolé par fichier (pas de `node_modules` dans ce
+  sandbox — voir "Repères opérationnels" dans PROGRESS.md — mais
+  syntaxe/typage propre au nouveau code vérifiés : aucune erreur hors la
+  catégorie connue "Cannot find module"/implicit any déjà présente ailleurs
+  dans le repo pour la même raison). Script Python statique
+  (`check_past_events_query.py`, scratchpad, non committé) vérifiant par
+  regex que les 5 clauses de filtre ci-dessus sont bien présentes dans le
+  fichier — relancé après écriture, passe.
+- **Pas touché à autre chose** dans le backlog (objectif unique de ce run).
+
 ## Fait (session pipeline autonome — run concurrent détecté, aucun nouveau travail poussé)
 
 - **Important pour les futurs runs — risque de concurrence entre deux
