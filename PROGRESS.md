@@ -5,9 +5,74 @@
 > entier avant de reprendre le travail, surtout après un changement de
 > compte/session Claude Code.
 
-Dernière mise à jour : 2026-10-19 (session : flows Maestro signup-organizer,
-event-create-and-register et friend-request-flow ajoutés, bug des dates par
-défaut de création d'événement corrigé)
+Dernière mise à jour : 2026-10-19 (session : flow Maestro
+channel-post-and-poll ajouté, bug bloquant trouvé et corrigé — aucun point
+d'entrée UI vers le canal d'une organisatrice —, nettoyage d'une PR
+dupliquée ouverte par un run précédent/concurrent)
+
+## Fait (session pipeline autonome — flow channel-post-and-poll)
+
+- **`.maestro/channel-post-and-poll.yaml` écrit** (item 5 du backlog "Flows
+  Maestro manquants" ci-dessous) : une organisatrice ("Camille Moreau")
+  publie un post puis un sondage à deux options dans son propre canal ;
+  une participante ("Lea Petit") devient son amie (demande + acceptation,
+  même mécanique que `friend-request-flow.yaml`), atteint son canal via
+  l'onglet "Mes amies" → profil → "Voir son canal", puis vote sur le
+  sondage (vérifié via le texte "1 vote" affiché après le vote).
+  Comptes indépendants des autres flows, ajouté à
+  `scripts/run-maestro-suite.sh`.
+- **Bug bloquant trouvé et corrigé en écrivant ce flow, pas seulement un
+  problème de test** : il n'existait **aucun point d'entrée dans l'UI**
+  permettant à une organisatrice d'atteindre son propre canal
+  (`app/channel/[id].tsx`), donc aucune façon de publier un post ou un
+  sondage depuis l'app, malgré le canal créé automatiquement par le
+  trigger SQL `trg_ensure_organizer_channel`. Cause : une organisatrice
+  n'est pas auto-abonnée à son propre canal (absente de l'onglet Canaux,
+  qui ne liste que les canaux suivis — voir le commentaire dans
+  `app/(tabs)/channels.tsx`), et `app/profile/[id].tsx` (qui porte le
+  bouton "Voir son canal") ne s'affiche que pour le profil d'une AUTRE
+  personne, jamais pour soi-même. **Corrigé** en ajoutant un bouton "Voir
+  mon canal" sur l'onglet Profil (`app/(tabs)/profile.tsx`, visible
+  seulement pour une organisatrice, charge l'id du canal via une requête
+  `channels.organizer_id = profile.id`). À signaler à l'utilisatrice si
+  elle a déjà cherché comment publier dans son canal sans trouver
+  comment.
+- **TestID ajoutés** (nécessaires pour ce flow, aucun n'existait avant sur
+  ces écrans) : `app/channel/[id].tsx` (`button-toggle-new-post`,
+  `input-post-content`, `button-publish-post`, `button-toggle-new-poll`,
+  `input-poll-question`, `input-poll-option-{index}`,
+  `button-create-poll`), `app/(tabs)/profile.tsx`
+  (`button-view-own-channel`, le nouveau bouton ci-dessus),
+  `app/profile/[id].tsx` (`button-view-channel` sur le bouton "Voir son
+  canal" déjà existant).
+  Validation faite ici : le fichier YAML parse comme deux documents
+  valides (`pyyaml`), `bash -n` passe sur le script, et le script a été
+  dry-runné avec un faux binaire `maestro` pour vérifier le câblage
+  (variables d'env, nom du flow) — **pas d'exécution réelle sur
+  Simulator** (Mac non connecté à ce run, voir plus bas), à valider pour
+  de vrai au prochain run si le Mac est disponible. `tsc --noEmit` sur les
+  trois fichiers `.tsx` modifiés ne remonte que des erreurs déjà connues
+  de ce sandbox (modules introuvables faute de `node_modules`, `any`
+  implicites préexistants) — aucune ne porte sur les props `testID`
+  ajoutées ni sur le nouvel état `ownChannelId`.
+- **PR dupliquée fermée** : un run précédent ou concurrent à celui-ci a
+  ouvert [PR #6](https://github.com/nicolaspoda/Sistrs/pull/6)
+  (`feat/signup-organizer-maestro-flow`) à partir d'une vue de `main`
+  antérieure à la fusion de `signup-organizer.yaml` (PR #2) — elle
+  dupliquait donc un flow déjà mergé et entrait en conflit avec `main`.
+  Fermée avec un commentaire explicatif, aucune action utilisateur
+  nécessaire.
+  **Point de vigilance pour les prochains runs** : [PR
+  #5](https://github.com/nicolaspoda/Sistrs/pull/5)
+  (`feat/maestro-messaging-send-flow`, item 4 du backlog) est ouverte et
+  prête (mergeable, pas de conflit) mais **pas encore mergée** au moment
+  d'écrire ceci — ne pas la recréer/dupliquer dans un prochain run tant
+  qu'elle n'est pas fusionnée ou fermée.
+- **Mac joignable mais toujours aucun dossier connecté à cette session**
+  (même constat que tous les runs précédents) : `get_device_info` répond,
+  mais `connectedFolders` est vide. Branche B (test E2E réel sur
+  Simulator) non tentée ce run pour cette raison — branche A (tâche de
+  dev) suivie à la place, qui n'a pas besoin du Mac.
 
 ## Fait (session pipeline autonome — flow friend-request-flow)
 
@@ -471,9 +536,17 @@ lancer localement à la fin de cette section.
      sur Simulator (Mac non connecté à ce run, voir plus haut). Mergé via
      PR #4.
   4. `messaging-send.yaml` — envoi réel d'un message dans une conversation
-     (pas juste lecture du badge "non lu" seedé).
-  5. `channel-post-and-poll.yaml` — organisatrice crée un post + un sondage
-     dans son canal, participante vote.
+     (pas juste lecture du badge "non lu" seedé). **Écrit, PR ouverte
+     mais pas encore mergée** : voir [PR
+     #5](https://github.com/nicolaspoda/Sistrs/pull/5)
+     (`feat/maestro-messaging-send-flow`). Ne pas redupliquer ce flow tant
+     que cette PR n'est pas fusionnée ou fermée.
+  5. ~~`channel-post-and-poll.yaml`~~ **fait le 2026-10-19** (voir section
+     "Fait (session pipeline autonome — flow channel-post-and-poll)" plus
+     haut) — écrit et câblé dans le script, pas encore exécuté pour de
+     vrai sur Simulator (Mac non connecté à ce run). A aussi permis de
+     trouver et corriger un vrai bug bloquant (aucun point d'entrée UI
+     vers le canal d'une organisatrice).
   6. `event-review.yaml` — avis (note + commentaire) sur un événement
      passé.
   7. `notifications.yaml` — vérifie qu'une notification in-app apparaît
