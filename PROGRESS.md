@@ -7,8 +7,27 @@
 > `PROGRESS_ARCHIVE.md` (déplacé là pour garder ce fichier court — le lire
 > seulement si un détail précis d'une session passée est nécessaire).
 
-Dernière mise à jour : 2026-10-19 (session : ajout de l'écran "Mes
-événements passés").
+Dernière mise à jour : 2026-10-19 (sessions : ajout de l'écran "Mes
+événements passés" ; flow Maestro cancel-registration écrit — hors backlog,
+demande séparée)
+
+## Fait (session pipeline autonome — flow cancel-registration)
+
+- **`.maestro/cancel-registration.yaml` écrit** : flow qui n'était PAS dans le
+  backlog "Flows Maestro manquants" (déjà entièrement fait, items 1-8), mais
+  une demande séparée de l'utilisateur. Il crée ses propres comptes (une
+  organisatrice et une participante, générés à la volée) et un événement
+  limité à 2 places. La participante s'inscrit, puis annule via
+  `button-cancel-registration`. Le flow vérifie que le compteur revient à "2
+  places restantes sur 2" et que `button-register-event` réapparaît après
+  l'annulation. Ajouté à `scripts/run-maestro-suite.sh` dans un bloc `run_flow
+  "cancel-registration.yaml"` avec ses propres variables
+  `CANCEL_ORGANIZER_EMAIL`/`CANCEL_PARTICIPANT_EMAIL`/`CANCEL_EVENT_TITLE`,
+  indépendant des autres flows.
+- **Validation effectuée** : pas d'exécution réelle (pas de Mac/Simulator
+  connecté à cette session) — validation statique uniquement (`bash -n` sur
+  `run-maestro-suite.sh`, parsing YAML du nouveau flow avec PyYAML), les deux
+  OK.
 
 ## Fait (ce run — écran "Mes événements passés")
 
@@ -57,7 +76,9 @@ Dernière mise à jour : 2026-10-19 (session : ajout de l'écran "Mes
   vrai macOS — ne peut piloter ni Xcode Simulator ni Maestro CLI même avec
   un dossier connecté. Backlog Maestro (8 flows couvrant toute l'app) 100%
   écrit/câblé dans `scripts/run-maestro-suite.sh` mais jamais exécuté pour
-  de vrai sur Simulator — reste la "Branche B" bloquée du pipeline.
+  de vrai sur Simulator — reste la "Branche B" bloquée du pipeline. Le flow
+  `cancel-registration.yaml` (hors backlog, voir section ci-dessus) est dans
+  la même situation : écrit/câblé, jamais exécuté pour de vrai.
 
 ## En cours / à faire ensuite
 

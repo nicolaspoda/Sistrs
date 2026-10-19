@@ -82,6 +82,16 @@ NOTIF_SENDER_PASSWORD="motdepasse123"
 PROFILE_EMAIL="test.e2e.profile.$(date +%s)@example.com"
 PROFILE_PASSWORD="motdepasse123"
 
+# Identifiants dédiés à cancel-registration.yaml (deux comptes,
+# organisatrice + participante) — un suffixe "cancel.org"/"cancel.part"
+# pour rester unique même si ce script tourne deux fois dans la même
+# seconde que les variables ci-dessus.
+CANCEL_ORGANIZER_EMAIL="test.e2e.cancel.org.$(date +%s)@example.com"
+CANCEL_ORGANIZER_PASSWORD="motdepasse123"
+CANCEL_PARTICIPANT_EMAIL="test.e2e.cancel.part.$(date +%s)@example.com"
+CANCEL_PARTICIPANT_PASSWORD="motdepasse123"
+CANCEL_EVENT_TITLE="Soiree quiz E2E $(date +%s)"
+
 {
   echo "=== Run Maestro $TIMESTAMP ==="
   echo "Email généré pour signup-participant : $SIGNUP_EMAIL"
@@ -151,6 +161,13 @@ run_flow "notifications.yaml" \
 run_flow "profile-edit-avatar.yaml" \
   --env PROFILE_EMAIL="$PROFILE_EMAIL" \
   --env PROFILE_PASSWORD="$PROFILE_PASSWORD"
+
+run_flow "cancel-registration.yaml" \
+  --env ORGANIZER_EMAIL="$CANCEL_ORGANIZER_EMAIL" \
+  --env ORGANIZER_PASSWORD="$CANCEL_ORGANIZER_PASSWORD" \
+  --env PARTICIPANT_EMAIL="$CANCEL_PARTICIPANT_EMAIL" \
+  --env PARTICIPANT_PASSWORD="$CANCEL_PARTICIPANT_PASSWORD" \
+  --env EVENT_TITLE="$CANCEL_EVENT_TITLE"
 
 if [ -n "${TEST_PASSWORD:-}" ]; then
   run_flow "login.yaml" \

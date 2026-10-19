@@ -910,4 +910,3 @@ lancer localement à la fin de cette section.
   l'utilisateur** : ces comptes développeur payants ne doivent pas être
   créés automatiquement par le pipeline — à confirmer explicitement le
   moment venu.
-
