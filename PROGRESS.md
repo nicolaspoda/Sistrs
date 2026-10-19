@@ -7,10 +7,28 @@
 > `PROGRESS_ARCHIVE.md` (déplacé là pour garder ce fichier court — le lire
 > seulement si un détail précis d'une session passée est nécessaire).
 
-Dernière mise à jour : 2026-10-19 (RLS resserrée — item "RLS à revisiter"
-traité ce run ; trois runs concurrents précédents — channel-discover-
-subscribe, signup-ocr-mismatch-warning, test EventLocationMap — détail
-complet archivé dans PROGRESS_ARCHIVE.md)
+Dernière mise à jour : 2026-10-19 (tentative de vérification backend du
+trigger push `trg_push_new_notification` — bloquée, voir ci-dessous ; RLS
+resserrée — item "RLS à revisiter" traité run précédent ; trois autres runs
+concurrents précédents — channel-discover-subscribe, signup-ocr-mismatch-
+warning, test EventLocationMap — détail complet archivé dans
+PROGRESS_ARCHIVE.md)
+
+## Trigger push `trg_push_new_notification` — tentative de vérification backend (2026-10-19)
+
+Projet Supabase `sistrs` (`grwwoigglxuqkgzvijky`) bien provisionné et
+accessible via le connecteur MCP. Trigger confirmé présent en base
+(`trg_push_new_notification`, AFTER INSERT sur `notifications`,
+`information_schema.triggers`). Mais **0 ligne dans `profiles`** (donc
+0 `push_token` renseigné) — impossible d'insérer une notification de test
+vers un profil réel, et impossible d'en mettre un temporaire sur un profil
+de test puisqu'aucun profil n'existe du tout (pas seulement sans
+push_token). Créer un faux profil/utilisateur de toutes pièces pour ce
+seul test fausserait les données de la base de démo — non fait,
+conformément à la consigne. **Reste donc non vérifié en conditions
+réelles** (ni insertion de notification ni confirmation via les logs
+pg_net/query_logs) — à refaire dès qu'au moins un profil réel avec
+`push_token` existera en base.
 
 ## Fait (session pipeline autonome — resserrement RLS)
 
