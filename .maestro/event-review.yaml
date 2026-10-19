@@ -1,0 +1,64 @@
+# Parcours réel de dépôt d'un avis (note + commentaire) sur un événement
+# déjà terminé — item 6 du backlog "Flows Maestro manquants" dans
+# PROGRESS.md.
+#
+# `canReview` dans app/event/[id].tsx exige `isPastEvent && isRegistered`
+# (isPastEvent = now() >= end_at ?? start_at). Aucun événement créé via le
+# formulaire de l'app (dates par défaut toujours dans le futur, voir
+# event/create.tsx) ni ceux de `supabase/seed.sql` (volontairement "à
+# venir", voir son commentaire) ne peut jamais remplir cette condition —
+# ce flow dépend donc, contrairement aux autres, du compte de test seedé
+# par `supabase/dev-seed-test-participant.sql` (comme login.yaml et
+# smoke_navigation.yaml), qui insère désormais un événement déjà terminé
+# (id fixe `e0000000-0000-0000-0000-000000000099`) avec une inscription
+# confirmée pour ce compte — voir le point "6b" ajouté à ce script.
+#
+# Atteindre cet événement précis depuis l'UI est ambigu par la navigation
+# normale (le fil d'accueil ne liste QUE les événements à venir —
+# `app/(tabs)/index.tsx` filtre `start_at >= now()` — et la notification
+# "Inscription confirmée" générée par le seed n'est pas distinguable par
+# son texte des autres notifications du même type, voir
+# `app/notifications.tsx` : labelForNotification ne montre pas le titre de
+# l'événement). On ouvre donc directement l'écran événement par deep link
+# (`sistrs://event/<id>`, schéma défini dans `app.json`, résolu par Expo
+# Router comme n'importe quelle navigation in-app) vers l'id fixe du
+# nouvel événement de seed — fiable et sans ambiguïté, contrairement à un
+# tap sur une notification.
+#
+# Usage (mot de passe du compte de test, voir
+# supabase/dev-seed-test-participant.sql — ce script doit avoir été
+# relancé après son édition pour ce flow, pour que l'événement terminé
+# existe) :
+#   maestro test \
+#     --env TEST_EMAIL=test.participante@sistrs.app \
+#     --env TEST_PASSWORD=le-mot-de-passe-du-seed \
+#     --env REVIEW_COMMENT="Super soirée, à refaire !" \
+#     .maestro/event-review.yaml
+appId: com.nicolaspoda.sistrs
+---
+- runFlow: login.yaml
+- assertVisible: "Communauté vérifiée.*"
+
+- openLink: "sistrs://event/e0000000-0000-0000-0000-000000000099"
+- assertVisible: "Soirée karaoké \\(terminée\\)"
+
+- scrollUntilVisible:
+    element:
+      id: "button-rating-star-4"
+    direction: DOWN
+
+# 4 étoiles sur 5.
+- tapOn:
+    id: "button-rating-star-4"
+- tapOn:
+    id: "input-review-comment"
+- inputText: "${REVIEW_COMMENT}"
+- tapOn:
+    id: "button-submit-review"
+
+# Le formulaire ("Laisser un avis"/"Ton avis") reste affiché après envoi
+# (canReview ne devient jamais faux), donc on vérifie l'avis lui-même :
+# le commentaire apparaît dans la liste et le total passe à "(1 avis)"
+# (aucun autre avis n'existe sur cet événement de seed dédié).
+- assertVisible: "${REVIEW_COMMENT}"
+- assertVisible: "\\(1 avis\\)"

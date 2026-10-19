@@ -7,11 +7,14 @@
 # Usage : ./scripts/run-maestro-suite.sh
 # Optionnel : TEST_PASSWORD=le-mot-de-passe-du-seed ./scripts/run-maestro-suite.sh
 #   (mot de passe du compte de test.participante@sistrs.app, voir
-#   supabase/dev-seed-test-participant.sql — sans ça, login.yaml et
-#   smoke_navigation.yaml sont sautés ; signup-participant.yaml,
+#   supabase/dev-seed-test-participant.sql — sans ça, login.yaml,
+#   smoke_navigation.yaml et event-review.yaml sont sautés (les trois
+#   dépendent du compte de test seedé, event-review.yaml de l'événement
+#   déjà terminé qu'il insère) ; signup-participant.yaml,
 #   signup-organizer.yaml, event-create-and-register.yaml,
-#   friend-request-flow.yaml et messaging-send.yaml tournent dans tous
-#   les cas, chacun avec ses propres comptes générés à la volée)
+#   friend-request-flow.yaml, messaging-send.yaml et
+#   channel-post-and-poll.yaml tournent dans tous les cas, chacun avec ses
+#   propres comptes générés à la volée)
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -131,10 +134,14 @@ if [ -n "${TEST_PASSWORD:-}" ]; then
   run_flow "smoke_navigation.yaml" \
     --env TEST_EMAIL="test.participante@sistrs.app" \
     --env TEST_PASSWORD="$TEST_PASSWORD"
+  run_flow "event-review.yaml" \
+    --env TEST_EMAIL="test.participante@sistrs.app" \
+    --env TEST_PASSWORD="$TEST_PASSWORD" \
+    --env REVIEW_COMMENT="Super soirée, à refaire ! ($(date +%s))"
 else
   {
     echo ""
-    echo "⏭️  login.yaml et smoke_navigation.yaml sautés (TEST_PASSWORD non fourni)"
+    echo "⏭️  login.yaml, smoke_navigation.yaml et event-review.yaml sautés (TEST_PASSWORD non fourni)"
   } | tee -a "$REPORT_FILE"
 fi
 
