@@ -5,9 +5,72 @@
 > entier avant de reprendre le travail, surtout après un changement de
 > compte/session Claude Code.
 
-Dernière mise à jour : 2026-10-19 (session : flow Maestro notifications.yaml
-ajouté — item 7 du backlog —, workflow du pipeline passé en commit direct sur
-`main` sans branche/PR sur décision explicite de l'utilisateur)
+Dernière mise à jour : 2026-10-19 (session : flow Maestro
+profile-edit-avatar.yaml ajouté — item 8, dernier du backlog "Flows Maestro
+manquants" — backlog dev Maestro désormais entièrement écrit, Branche B
+(exécution réelle sur Simulator) reste la seule étape non faite)
+
+## Fait (session pipeline autonome — flow profile-edit-avatar)
+
+- **`.maestro/profile-edit-avatar.yaml` écrit** (item 8, dernier du backlog
+  "Flows Maestro manquants" ci-dessous) : un compte participante ("Lea
+  Petit") modifie sa bio puis change son avatar, avec vérification de
+  persistance après déconnexion/reconnexion. Comme pour la pièce d'identité
+  à l'inscription, le vrai sélecteur de photos natif (PHPicker) n'est pas
+  piloté par Maestro — un nouveau raccourci développeur
+  (`link-dev-use-test-avatar`, visible uniquement hors production, même
+  principe que `link-dev-use-test-id` dans `app/(auth)/sign-up.tsx`) charge
+  un avatar de test depuis les assets de l'app, mais déclenche malgré tout
+  un upload réel vers le bucket Supabase Storage `avatars` et une vraie
+  mise à jour de `profiles.avatar_url` (seul le choix du fichier source est
+  simulé, pas l'upload). Vérification de l'avatar nécessairement indirecte :
+  `components/Avatar.tsx` affiche les initiales du nom ("LP") en fallback
+  tant qu'`avatar_url` est vide, une vraie image sinon — le flow vérifie
+  donc que "LP" disparaît après le raccourci, plutôt que le contenu de
+  l'image.
+  TestID ajoutés dans `app/(tabs)/profile.tsx` : `input-profile-first-name`,
+  `input-profile-last-name`, `input-profile-bio` (champs d'édition du
+  profil, qui n'en avaient aucun jusqu'ici), `button-edit-profile` (icône
+  crayon qui ouvre l'édition bio/nom — disambiguée de `button-edit-categories`,
+  ajouté sur l'icône crayon équivalente de la section Spécialités/Préférences
+  pour éviter toute ambiguïté future), `button-save-profile`,
+  `button-cancel-edit-profile`, `link-dev-use-test-avatar`.
+  Changement de code non-mécanique (fait moi-même, pas délégué) : extraction
+  de la logique d'upload+mise à jour `avatar_url` partagée entre
+  `handlePickAvatar` (sélecteur réel) et le nouveau `handleUseDevTestAvatar`
+  (raccourci dev) dans une fonction commune `applyAvatarUri` — évite la
+  duplication et garantit que le raccourci dev suit exactement le même
+  chemin d'upload réel que l'utilisatrice normale. Réutilise l'asset
+  `assets/dev/fake-id-card.png` déjà présent (son contenu visuel n'a aucune
+  importance pour ce test) plutôt que d'ajouter un nouveau fichier binaire.
+  Ajouté à `scripts/run-maestro-suite.sh` (toujours exécuté, compte généré à
+  la volée comme les autres flows non gated par `TEST_PASSWORD`).
+  Validation faite : le YAML parse comme deux documents valides (`pyyaml`,
+  48 étapes), `bash -n` passe sur le script modifié, relecture manuelle
+  complète du diff `.tsx` (vérification des accolades/parenthèses
+  équilibrées en plus de la lecture ligne à ligne, `tsc` isolé sans
+  `node_modules` non concluant comme documenté plus bas — pas de nouvelle
+  tentative `npm install`, limitation déjà confirmée à plusieurs reprises).
+  Écriture mécanique du YAML et du diff `scripts/run-maestro-suite.sh`
+  déléguée à un sous-agent Haiku une fois la logique et le contenu exact
+  entièrement décidés par moi (Sonnet) ; les testID et le changement de
+  logique dans `profile.tsx` ont été faits directement par moi (pas
+  délégués) car ils touchent une fonction partagée et du JSX imbriqué, pas
+  une simple répétition mécanique.
+- **Branche B (test E2E réel) non tentée ce run** : `get_device_info`
+  répond, mais `connectedFolders` est de nouveau vide (comme pour la
+  majorité des runs précédents, à l'exception du run event-review).
+  Conforme à la procédure : pas de tentative de contournement par contrôle
+  d'écran macOS pour une branche B qui n'a même pas de dossier connecté (ce
+  contournement ne s'applique qu'à un `device_bash` incapable malgré un
+  dossier connecté, pas à son absence). Branche A suivie à la place —
+  d'autant plus naturel ici que le backlog Maestro avait encore un item non
+  bloqué (item 8).
+- **Git config locale** : `user.name`/`user.email` du clone pointaient
+  encore vers "Claude"/"noreply@anthropic.com" au début de ce run (reset
+  entre deux clones/sessions) — corrigés en tout premier lieu vers
+  "nicolaspoda"/"nicolaspoda31@gmail.com" avant tout commit, conformément à
+  CLAUDE.md.
 
 ## Fait (session pipeline autonome — flow notifications)
 
@@ -754,17 +817,32 @@ lancer localement à la fin de cette section.
      et câblé dans le script, pas encore exécuté pour de vrai sur Simulator
      (Mac non connecté à ce run). Committé directement sur `main` (nouveau
      workflow sans branche/PR).
-  8. `profile-edit-avatar.yaml` — modification du profil + upload avatar
-     réel vers Storage.
+  8. ~~`profile-edit-avatar.yaml`~~ **fait le 2026-10-19** (voir section
+     "Fait (session pipeline autonome — flow profile-edit-avatar)" plus
+     haut) — écrit et câblé dans le script, pas encore exécuté pour de vrai
+     sur Simulator (Mac non connecté à ce run non plus). Nécessite un
+     nouveau raccourci développeur `link-dev-use-test-avatar` dans
+     `app/(tabs)/profile.tsx` (même principe que `link-dev-use-test-id`)
+     pour éviter de piloter le vrai sélecteur de photos natif.
   Chaque nouveau flow doit être ajouté à `scripts/run-maestro-suite.sh` et
   à la liste lue par la tâche planifiée.
-  **Note** : les items 1 à 7 sont tous écrits et câblés dans le script
-  (mergés via PR #2-#7 pour les items 1-5, committés directement sur `main`
-  pour les items 6-7 après le changement de workflow). **Aucun n'a encore
-  été exécuté pour de vrai sur un Simulator** — la branche B du pipeline
-  reste bloquée (voir "Pipeline dev → test E2E → fix en boucle" plus bas).
-  Prochaine tâche non bloquée pour le pipeline : item 8
-  (`profile-edit-avatar.yaml`).
+  **Note** : les items 1 à 8 sont désormais TOUS écrits et câblés dans le
+  script (mergés via PR #2-#7 pour les items 1-5, committés directement sur
+  `main` pour les items 6-8 après le changement de workflow). **Aucun n'a
+  encore été exécuté pour de vrai sur un Simulator** — la branche B du
+  pipeline reste bloquée (voir "Pipeline dev → test E2E → fix en boucle"
+  plus bas). **Le backlog "Flows Maestro manquants" est maintenant vide** :
+  il n'y a plus de tâche de dev non bloquée connue dans cette liste pour un
+  futur run — la prochaine étape logique du pipeline est la Branche B
+  (premier vrai run E2E sur Simulator, dès qu'un run a enfin accès au Mac
+  avec `device_bash` fonctionnel ou, à défaut, au contrôle d'écran macOS
+  autorisé). Si un futur run ne peut toujours pas accéder au Mac, il n'y a
+  plus, à ce stade, de tâche de dev de secours dans cette liste — voir
+  "Backlog prêt pour le store" ci-dessous (explicitement à ne traiter
+  qu'une fois la couverture E2E avancée, donc pas avant un premier run
+  Branche B réussi) et "En cours / à faire ensuite" (tâches majoritairement
+  manuelles côté utilisateur ou décisions produit, pas des tâches
+  automatisables par le pipeline).
 - **Backlog "prêt pour le store"** (distinct des tests, à ne traiter
   qu'une fois la couverture E2E ci-dessus avancée) : politique de
   confidentialité (obligatoire — l'app traite genre + pièce d'identité),

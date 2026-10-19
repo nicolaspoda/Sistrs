@@ -1,0 +1,157 @@
+# Modification du profil (prénom/nom/bio) et upload d'un avatar réel vers
+# Supabase Storage. Couvre l'item 8 du backlog "Flows Maestro manquants"
+# dans PROGRESS.md.
+#
+# Comme pour la pièce d'identité à l'inscription (voir signup-participant.yaml
+# et app/(auth)/sign-up.tsx), ce flow utilise un raccourci développeur
+# (testID "link-dev-use-test-avatar", visible uniquement hors production)
+# plutôt que le vrai sélecteur de photos natif (PHPicker, non fiable à
+# piloter par coordonnées dans Maestro) pour choisir l'avatar. Il déclenche
+# malgré tout un upload réel vers le bucket Supabase Storage `avatars` et une
+# vraie mise à jour de `profiles.avatar_url` — seul le choix du fichier
+# source est simulé, pas l'upload.
+#
+# Vérification de l'avatar : indirecte. Le composant Avatar (components/Avatar.tsx)
+# affiche les initiales du nom ("LP" pour "Lea Petit") quand avatar_url est
+# vide, et une vraie image sinon — donc on vérifie que "LP" disparaît après
+# avoir utilisé le raccourci, plutôt que de vérifier le contenu de l'image.
+#
+# Usage (email unique à chaque run pour éviter "compte déjà existant") :
+#   maestro test \
+#     --env PROFILE_EMAIL=test.e2e.profile.$(date +%s)@example.com \
+#     --env PROFILE_PASSWORD=motdepasse123 \
+#     .maestro/profile-edit-avatar.yaml
+#
+# Prérequis : identiques aux autres flows de signup — pellicule du Simulator
+# avec au moins une photo, permission Photos déjà accordée à l'app (ce
+# compte passe par le raccourci développeur pour la pièce d'identité à
+# l'inscription, pas par le vrai sélecteur de photos natif).
+appId: com.nicolaspoda.sistrs
+---
+# === Compte participante : "Lea Petit" ===
+- launchApp:
+    clearState: true
+# Premier lancement après clearState : Metro doit resservir/recharger le
+# bundle JS, ce qui dépasse le délai d'attente implicite par défaut de
+# Maestro sur certaines machines — on attend explicitement plus longtemps.
+- extendedWaitUntil:
+    visible: "S'inscrire"
+    timeout: 30000
+- tapOn: "S'inscrire"
+
+# --- Étape 1 : Tes informations ---
+- tapOn:
+    id: "input-first-name"
+- inputText: "Lea"
+- tapOn:
+    id: "input-last-name"
+- inputText: "Petit"
+- tapOn: "Tes informations"  # tap sur un texte statique pour fermer le clavier (hideKeyboard non fiable ici)
+
+# Date de naissance : on garde le défaut pré-sélectionné par l'app
+# ("aujourd'hui - 25 ans", toujours majeure) plutôt que de naviguer le
+# calendrier.
+- tapOn:
+    id: "input-birth-date"
+- tapOn: "Valider"
+
+- tapOn:
+    id: "input-email"
+- inputText: "${PROFILE_EMAIL}"
+# Maestro/XCTest ne saisit pas fiablement dans un champ secureTextEntry
+# actif — on bascule les deux champs en "mot de passe visible" AVANT de
+# taper quoi que ce soit (voir signup-participant.yaml).
+- tapOn:
+    id: "input-password-toggle-visibility"
+- tapOn:
+    id: "input-confirm-password-toggle-visibility"
+- tapOn:
+    id: "input-password"
+- inputText: "${PROFILE_PASSWORD}"
+- tapOn:
+    id: "input-confirm-password"
+- inputText: "${PROFILE_PASSWORD}"
+- tapOn: "Tes informations"  # ferme le clavier
+
+# "Participante" est déjà le rôle par défaut, on le confirme explicitement.
+- tapOn:
+    id: "role-participant"
+
+# --- Pièce d'identité ---
+- tapOn:
+    id: "link-dev-use-test-id"
+- assertVisible: "Pièce d'identité ajoutée ✓"
+- tapOn:
+    id: "button-continue-step1"
+
+# L'OCR peut renvoyer un avertissement si la date lue sur la pièce ne
+# correspond pas à la date de naissance saisie — même bouton, libellé
+# différent ("Continuer quand même"), pas de changement d'écran.
+- runFlow:
+    when:
+      visible: "Continuer quand même"
+    commands:
+      - tapOn:
+          id: "button-continue-step1"
+
+# --- Étape 2 : Tes préférences ---
+- tapOn:
+    id: "age-bracket-18-25"
+- tapOn: "Bar"
+- tapOn:
+    id: "link-dev-bypass-faceid"
+- assertVisible: "Face ID activé ✓"
+
+- tapOn:
+    id: "button-create-account"
+- assertVisible: "Compte créé avec succès.*"
+
+# --- Connexion avec le compte tout juste créé ---
+- runFlow:
+    file: login.yaml
+    env:
+      TEST_EMAIL: "${PROFILE_EMAIL}"
+      TEST_PASSWORD: "${PROFILE_PASSWORD}"
+
+# === Onglet Profil : état initial (avant modification) ===
+- tapOn: "Profil.*"
+# Initiales affichées en fallback par le composant Avatar tant qu'aucun
+# avatar_url n'est défini (voir components/Avatar.tsx).
+- assertVisible: "LP"
+
+# === Modification du prénom/nom/bio ===
+- tapOn:
+    id: "button-edit-profile"
+- tapOn:
+    id: "input-profile-bio"
+- inputText: "Toujours prete pour une sortie entre sisters."
+- hideKeyboard
+- tapOn:
+    id: "button-save-profile"
+- assertVisible: "Toujours prete pour une sortie entre sisters."
+
+# === Upload d'un avatar réel via le raccourci développeur ===
+- tapOn:
+    id: "link-dev-use-test-avatar"
+# L'upload vers Supabase Storage prend un instant — on attend que les
+# initiales disparaissent plutôt qu'un délai fixe.
+- extendedWaitUntil:
+    notVisible: "LP"
+    timeout: 15000
+
+# === Déconnexion puis reconnexion : vérifie que bio + avatar ont bien été persistés côté serveur ===
+- tapOn:
+    id: "button-sign-out"
+# Alert.alert natif à deux boutons ("Annuler" / "Se déconnecter").
+- tapOn: "Se déconnecter"
+- assertVisible: "S'inscrire"
+
+- runFlow:
+    file: login.yaml
+    env:
+      TEST_EMAIL: "${PROFILE_EMAIL}"
+      TEST_PASSWORD: "${PROFILE_PASSWORD}"
+
+- tapOn: "Profil.*"
+- assertVisible: "Toujours prete pour une sortie entre sisters."
+- assertNotVisible: "LP"

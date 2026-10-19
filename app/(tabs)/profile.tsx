@@ -1,5 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useState } from "react";
+import { Asset } from "expo-asset";
+import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import { uploadImageAsync } from "../../lib/storage";
 import { useRouter } from "expo-router";
@@ -39,6 +41,18 @@ type SpecialtyRow = {
   category_id: string;
   categories: Category | null;
 };
+
+const isProduction = process.env.EXPO_PUBLIC_ENV === "production";
+
+// Avatar de test pour le flow Maestro .maestro/profile-edit-avatar.yaml :
+// évite de devoir automatiser le sélecteur de photos natif (PHPicker, non
+// fiable à piloter par coordonnées — même raisonnement que
+// handleUseDevTestIdDocument dans app/(auth)/sign-up.tsx). Jamais inclus en
+// production (voir !isProduction ci-dessous). On réutilise l'image de
+// pièce d'identité factice déjà présente dans les assets, son contenu visuel
+// n'a aucune importance ici.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const DEV_TEST_AVATAR_IMAGE = require("../../assets/dev/fake-id-card.png");
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -148,6 +162,25 @@ export default function ProfileScreen() {
   const statusMeta = STATUS_META[profile.status];
   const fullName = `${profile.first_name} ${profile.last_name}`.trim();
 
+  // Logique d'upload partagée entre le vrai sélecteur de photos
+  // (handlePickAvatar) et le raccourci développeur E2E
+  // (handleUseDevTestAvatar) ci-dessous.
+  const applyAvatarUri = async (uri: string) => {
+    try {
+      const avatarUrl = await uploadImageAsync(uri, "avatars", profile.id);
+      const { error } = await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("id", profile.id);
+
+      if (error) {
+        Alert.alert("Erreur", "Impossible de mettre à jour l'avatar.");
+        return;
+      }
+
+      await refreshProfile();
+    } catch {
+      Alert.alert("Erreur", "Impossible d'envoyer la photo. Réessaie.");
+    }
+  };
+
   const handlePickAvatar = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -164,20 +197,22 @@ export default function ProfileScreen() {
 
     if (result.canceled || !result.assets?.[0]?.uri) return;
 
-    const uri = result.assets[0].uri;
+    await applyAvatarUri(result.assets[0].uri);
+  };
 
+  // Charge l'avatar de test directement depuis les assets de l'app, sans
+  // passer par le sélecteur de photos natif — utilisé uniquement par le
+  // flow .maestro/profile-edit-avatar.yaml (voir commentaire sur
+  // DEV_TEST_AVATAR_IMAGE plus haut).
+  const handleUseDevTestAvatar = async () => {
     try {
-      const avatarUrl = await uploadImageAsync(uri, "avatars", profile.id);
-      const { error } = await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("id", profile.id);
-
-      if (error) {
-        Alert.alert("Erreur", "Impossible de mettre à jour l'avatar.");
-        return;
-      }
-
-      await refreshProfile();
+      const asset = Asset.fromModule(DEV_TEST_AVATAR_IMAGE);
+      await asset.downloadAsync();
+      const destUri = `${FileSystem.cacheDirectory}dev-fake-avatar.png`;
+      await FileSystem.copyAsync({ from: asset.localUri ?? asset.uri, to: destUri });
+      await applyAvatarUri(destUri);
     } catch {
-      Alert.alert("Erreur", "Impossible d'envoyer la photo. Réessaie.");
+      Alert.alert("Erreur", "Impossible de charger l'avatar de test.");
     }
   };
 
@@ -312,14 +347,37 @@ export default function ProfileScreen() {
               <Text style={styles.statChipText}>{profile.activity_count} activité(s)</Text>
             </View>
           </View>
+
+          {!isProduction ? (
+            <TouchableOpacity
+              testID="link-dev-use-test-avatar"
+              onPress={handleUseDevTestAvatar}
+              style={styles.devAvatarLink}
+            >
+              <Text style={styles.devAvatarLinkText}>
+                Mode développeur : utiliser un avatar de test (sélecteur de photos non piloté par Maestro)
+              </Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         <View style={styles.card}>
           {isEditing ? (
             <>
-              <AuthTextField label="Prénom" value={firstName} onChangeText={setFirstName} />
-              <AuthTextField label="Nom" value={lastName} onChangeText={setLastName} />
               <AuthTextField
+                testID="input-profile-first-name"
+                label="Prénom"
+                value={firstName}
+                onChangeText={setFirstName}
+              />
+              <AuthTextField
+                testID="input-profile-last-name"
+                label="Nom"
+                value={lastName}
+                onChangeText={setLastName}
+              />
+              <AuthTextField
+                testID="input-profile-bio"
                 label="Bio"
                 value={bio}
                 onChangeText={setBio}
@@ -330,6 +388,7 @@ export default function ProfileScreen() {
 
               <View style={styles.editActionsRow}>
                 <PrimaryButton
+                  testID="button-cancel-edit-profile"
                   label="Annuler"
                   variant="outline"
                   onPress={handleCancelEdit}
@@ -337,6 +396,7 @@ export default function ProfileScreen() {
                   disabled={isSaving}
                 />
                 <PrimaryButton
+                  testID="button-save-profile"
                   label="Enregistrer"
                   onPress={handleSave}
                   isLoading={isSaving}
@@ -349,6 +409,7 @@ export default function ProfileScreen() {
               <View style={styles.sectionHeaderRow}>
                 <Text style={styles.sectionLabel}>Bio</Text>
                 <TouchableOpacity
+                  testID="button-edit-profile"
                   style={styles.editIconButton}
                   onPress={() => setIsEditing(true)}
                   activeOpacity={0.75}
@@ -368,6 +429,7 @@ export default function ProfileScreen() {
             </Text>
             {!isEditingCategories ? (
               <TouchableOpacity
+                testID="button-edit-categories"
                 style={styles.editIconButton}
                 onPress={handleStartEditCategories}
                 activeOpacity={0.75}
@@ -564,6 +626,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     color: Colors.text,
+  },
+  devAvatarLink: {
+    marginTop: 10,
+    paddingHorizontal: 12,
+  },
+  devAvatarLinkText: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    textAlign: "center",
+    textDecorationLine: "underline",
   },
   card: {
     backgroundColor: Colors.surface,

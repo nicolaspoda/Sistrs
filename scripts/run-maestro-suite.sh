@@ -76,6 +76,12 @@ NOTIF_RECIPIENT_PASSWORD="motdepasse123"
 NOTIF_SENDER_EMAIL="test.e2e.notif.sender.$(date +%s)@example.com"
 NOTIF_SENDER_PASSWORD="motdepasse123"
 
+# Identifiants dédiés à profile-edit-avatar.yaml (un seul compte
+# participante) — suffixe "profile" pour rester unique même si ce script
+# tourne deux fois dans la même seconde que les variables ci-dessus.
+PROFILE_EMAIL="test.e2e.profile.$(date +%s)@example.com"
+PROFILE_PASSWORD="motdepasse123"
+
 {
   echo "=== Run Maestro $TIMESTAMP ==="
   echo "Email généré pour signup-participant : $SIGNUP_EMAIL"
@@ -141,6 +147,10 @@ run_flow "notifications.yaml" \
   --env RECIPIENT_PASSWORD="$NOTIF_RECIPIENT_PASSWORD" \
   --env SENDER_EMAIL="$NOTIF_SENDER_EMAIL" \
   --env SENDER_PASSWORD="$NOTIF_SENDER_PASSWORD"
+
+run_flow "profile-edit-avatar.yaml" \
+  --env PROFILE_EMAIL="$PROFILE_EMAIL" \
+  --env PROFILE_PASSWORD="$PROFILE_PASSWORD"
 
 if [ -n "${TEST_PASSWORD:-}" ]; then
   run_flow "login.yaml" \
