@@ -5,10 +5,64 @@
 > entier avant de reprendre le travail, surtout après un changement de
 > compte/session Claude Code.
 
-Dernière mise à jour : 2026-10-19 (session : flow Maestro
-profile-edit-avatar.yaml ajouté — item 8, dernier du backlog "Flows Maestro
-manquants" — backlog dev Maestro désormais entièrement écrit, Branche B
-(exécution réelle sur Simulator) reste la seule étape non faite)
+Dernière mise à jour : 2026-10-19 (session : run concurrent détecté sur
+l'item 8 — voir section juste en dessous — aucun nouveau travail poussé ce
+run pour éviter de dupliquer/entrer en conflit avec une session déjà en
+cours)
+
+## Fait (session pipeline autonome — run concurrent détecté, aucun nouveau travail poussé)
+
+- **Important pour les futurs runs — risque de concurrence entre deux
+  sessions de cette tâche planifiée** : ce run a cloné `main` à un moment
+  où le dernier commit visible était `3cb0e63` (fire_trigger bloqué par le
+  classificateur), a déterminé indépendamment la même tâche non bloquée
+  (item 8, `profile-edit-avatar.yaml`), a implémenté une solution quasiment
+  identique (même raccourci développeur `link-dev-use-test-avatar`, même
+  extraction de la logique d'upload partagée) et a commité en local. Au
+  moment de `git pull --rebase origin main` juste avant de pousser (étape
+  3/5 de la procédure), il s'est avéré qu'**une autre session avait déjà
+  poussé une implémentation équivalente de ce même item 8** (commit
+  `55eb50b`, 18:50:24 UTC) **et avait ensuite réussi son propre
+  `fire_trigger`** (commit `98e1ecf`, 18:51:05 UTC, qui documente que
+  l'auto-enchaînement a cette fois fonctionné, contrairement au run
+  précédent). Autrement dit, deux sessions de cette tâche planifiée ont
+  tourné en parallèle sur le même backlog, probablement parce que le cron
+  horaire de secours s'est déclenché pendant qu'une chaîne `fire_trigger`
+  d'un run précédent était encore active.
+- **Résolution** : le rebase a produit des conflits sur 4 fichiers,
+  dont deux (`.maestro/profile-edit-avatar.yaml` en conflit add/add et
+  `app/(tabs)/profile.tsx`) sortent du cas bénin prévu par CLAUDE.md
+  ("conflit uniquement sur `PROGRESS.md` ou
+  `scripts/run-maestro-suite.sh`") — rebase abandonné (`git rebase
+  --abort`) comme prescrit. Comme mon implémentation locale était
+  strictement redondante avec celle déjà poussée (même fonctionnalité,
+  même approche), j'ai réinitialisé la branche locale sur `origin/main`
+  (`git reset --hard origin/main`) plutôt que de tenter une fusion
+  manuelle sans valeur ajoutée — rien n'est donc poussé par ce run.
+- **Décision prise pour ce run : ne PAS redéclencher `fire_trigger` et ne
+  PAS tenter la branche B (contrôle d'écran macOS) malgré l'autorisation
+  explicite de l'utilisateur** — le backlog "Flows Maestro manquants" est
+  désormais entièrement épuisé (items 1-8 tous faits, voir plus bas) donc
+  il n'y a plus de tâche de branche A à traiter, et la session déjà
+  déclenchée par le `fire_trigger` réussi de 18:51:05 UTC est
+  vraisemblablement encore active (seulement quelques minutes avant la fin
+  de ce run) — relancer une seconde tentative de branche B ou un nouveau
+  `fire_trigger` en parallèle créerait un risque concret de double pilotage
+  du même Mac (deux sessions cliquant sur le même écran) ou de nouveaux
+  conflits de push, sans aucun gain. Le filet de sécurité (cron horaire) et
+  la chaîne déjà en cours suffisent à faire avancer le pipeline sans
+  intervention supplémentaire de ce run.
+- **`get_device_info` de ce run** : Mac joignable
+  (`macbook-pro-de-nicolas-3-local`), mais `connectedFolders` vide — comme
+  pour la majorité des runs précédents.
+- **Pour un futur run qui retomberait sur ce même scénario (conflit de
+  rebase révélant qu'un item de backlog vient d'être fait par une autre
+  session)** : c'est la bonne résolution à reproduire — abandonner le
+  rebase si le conflit dépasse PROGRESS.md/run-maestro-suite.sh, vérifier
+  que le contenu distant couvre bien la même tâche, `reset --hard
+  origin/main` pour abandonner le doublon local, puis chercher la
+  prochaine tâche non bloquée RÉELLEMENT restante (ne pas supposer qu'il y
+  en a une juste parce que ce run en avait trouvé une au début).
 
 ## Fait (session pipeline autonome — flow profile-edit-avatar)
 
