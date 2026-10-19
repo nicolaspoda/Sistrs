@@ -26,6 +26,99 @@
   connecté à cette session) — validation statique uniquement (`bash -n`
   sur `run-maestro-suite.sh`, parsing YAML du nouveau flow avec PyYAML).
 
+## Diagnostic (run concurrent — channel-discover-subscribe, avant résolution)
+
+Avant le flow écrit ci-dessous, un run concurrent de la même session avait
+traité la même consigne et s'était arrêté sans rien écrire :
+
+- **Tâche demandée** : écrire `.maestro/channel-discover-subscribe.yaml`
+  pour vérifier qu'une participante peut découvrir, depuis une section
+  "découvrir" de l'onglet Canaux (`app/(tabs)/channels.tsx`), un canal
+  d'une organisatrice qu'elle ne suit pas encore, s'y abonner, puis le
+  retrouver dans la section "suivis".
+- **Vérifié d'abord** qu'aucun flow équivalent n'existe déjà : rien dans
+  `PROGRESS.md`, `PROGRESS_ARCHIVE.md`, l'historique Git ou `.maestro/`
+  (seul flow canal existant : `channel-post-and-poll.yaml`).
+- **Bloqué** : cette section "découvrir" n'existe pas dans le code. Le
+  composant liste UNIQUEMENT les canaux déjà suivis, avec un commentaire
+  explicite en l'état actuel : "la découverte de nouveaux canaux se fait
+  via les publications des organisatrices (fil d'accueil / profils), pas
+  par une liste 'Découvrir' à parcourir" — décision déjà actée, pas un
+  oubli de testID. Confirmé par recherche dans tout `app/` : aucune liste
+  de canaux non suivis nulle part. Le seul chemin UI actuel pour s'abonner
+  à un canal pas encore suivi est le bouton toggle dans
+  `app/channel/[id].tsx`, atteint via le profil d'une organisatrice (ex.
+  après acceptation d'amitié — voir `channel-post-and-poll.yaml`), pas via
+  une liste parcourable.
+- **Rien modifié** de ce run : `app/(tabs)/channels.tsx` non touché, aucun
+  flow écrit, `run-maestro-suite.sh` non modifié. Trois options laissées à
+  l'utilisateur : (a) construire une vraie section "Découvrir" ; (b)
+  réécrire le flow demandé pour coller au chemin UI réel (découverte via
+  profil organisatrice) ; (c) abandonner la demande. **Résolu par un autre
+  run de la même session, qui a choisi l'option (b)** — voir section
+  suivante.
+
+## Fait (session pipeline autonome — flow channel-discover-subscribe)
+
+- **Prémisse de la tâche obsolète, flow adapté au parcours réel actuel** :
+  la demande visait une section "Découvrir" (canaux non suivis) distincte
+  de "suivis" dans `app/(tabs)/channels.tsx`. Cette section a existé mais
+  a été supprimée délibérément le 2026-09-28 (commit `231879e`,
+  "refactor(channels): Channels tab lists followed channels only") — la
+  découverte de canaux se fait désormais via les publications/profils des
+  organisatrices, plus par une liste à parcourir dans cet onglet (voir le
+  commentaire en tête du fichier). `.maestro/channel-discover-subscribe.yaml`
+  teste donc le vrai parcours actuel : Amies > profil de l'organisatrice >
+  "Voir son canal" (seul chemin UI pour atteindre le canal d'une
+  organisatrice pas encore suivie, déjà utilisé par
+  `channel-post-and-poll.yaml`) > abonnement explicite > vérification que
+  le canal apparaît dans l'onglet "Canaux". Réutilise tel quel le setup de
+  `channel-post-and-poll.yaml` via `runFlow` (participante déjà amie de
+  l'organisatrice, sur l'écran du canal, jamais abonnée explicitement).
+- **Bug/lacune trouvé en écrivant ce flow** : le bouton
+  d'abonnement/désabonnement de `app/channel/[id].tsx` n'avait aucun
+  testID (seul le libellé "S'abonner"/"Abonnée" le distinguait) —
+  `testID="button-toggle-follow-channel"` ajouté.
+- Ajouté à `scripts/run-maestro-suite.sh`
+  (`run_flow "channel-discover-subscribe.yaml"` avec ses propres
+  variables `DISCOVER_ORGANIZER_EMAIL`/`DISCOVER_PARTICIPANT_EMAIL`,
+  indépendantes des autres flows).
+- **Validation effectuée** : pas d'exécution réelle (pas de Mac/Simulator
+  connecté à cette session) — validation statique uniquement (`bash -n`
+  sur `run-maestro-suite.sh`, parsing YAML du nouveau flow avec PyYAML,
+  `tsc` partiel sur `app/channel/[id].tsx`), tout OK.
+
+## Fait (session pipeline autonome — test composant EventLocationMap)
+
+- **`components/__tests__/EventLocationMap.test.tsx` écrit** : demande
+  séparée de l'utilisateur (`components/EventLocationMap.tsx` n'avait aucun
+  test). Mock complet de `@rnmapbox/maps` (module natif absent de ce
+  sandbox) — 3 cas : montage sans erreur avec token + coordonnées valides,
+  coordonnées bien transmises à `Camera`/`PointAnnotation` mockés (en
+  `[longitude, latitude]`), et pas de crash + message de repli quand
+  `EXPO_PUBLIC_MAPBOX_TOKEN` est absent. Le token est lu au niveau module
+  (pas dans le composant), donc chaque cas fait `jest.resetModules()` +
+  `require()` après avoir positionné `process.env`.
+- **Infra de test ajoutée from scratch** (aucune avant) : `jest`,
+  `jest-expo`, `@testing-library/react-native`, `@types/jest`,
+  `react-test-renderer` en devDependencies + script `npm test` + config
+  `"jest": { "preset": "jest-expo" }` dans `package.json`. Versions choisies
+  au jugé (compatibles Expo SDK 57 / React 19.2 / RN 0.86) — **pas
+  vérifiées par un vrai `npm install`** (voir limite ci-dessous) : à
+  ajuster par l'utilisateur si `npm install` signale un conflit.
+- **LIMITE IMPORTANTE (double)** : (1) `npm install` toujours bloqué dans ce
+  sandbox (DNS `registry.npmjs.org` inatteignable, reconfirmé ce jour,
+  même en forçant le proxy) → le test n'a **jamais été exécuté pour de
+  vrai** ici, seulement validé statiquement (`tsc` partiel, erreurs
+  "Cannot find process/jest/require" ignorées car dues à l'absence de
+  `@types/node`/`@types/jest` non installés — aucune autre erreur). À
+  exécuter (`npm install` puis `npm test`) sur le Mac de l'utilisateur
+  avant de faire confiance au résultat. (2) Même une fois exécuté pour de
+  vrai, ce test ne remplace PAS une vérification visuelle de la carte
+  Mapbox (zoom, marqueur bien positionné, tuiles qui chargent) — ça reste
+  à faire manuellement par l'utilisateur sur son Mac/device avec un
+  development build.
+
 ## Fait (session pipeline autonome — flow decline-friend-request)
 
 - **`.maestro/decline-friend-request.yaml` écrit** : demande séparée de

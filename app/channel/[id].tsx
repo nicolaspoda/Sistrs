@@ -511,6 +511,7 @@ export default function ChannelDetailScreen() {
 
           {profile ? (
             <TouchableOpacity
+              testID="button-toggle-follow-channel"
               style={[styles.followButton, isSubscribed && styles.followButtonActive]}
               onPress={toggleFollow}
               disabled={isFollowPending}

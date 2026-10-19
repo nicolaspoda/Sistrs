@@ -7,76 +7,65 @@
 > `PROGRESS_ARCHIVE.md` (déplacé là pour garder ce fichier court — le lire
 > seulement si un détail précis d'une session passée est nécessaire).
 
-Dernière mise à jour : 2026-10-19 (test de composant EventLocationMap,
-flow Maestro signup-ocr-mismatch-warning écrit, et session pipeline
-autonome bloquée sur le flow Maestro `channel-discover-subscribe.yaml` —
-trois sessions distinctes, demandes séparées ; sessions précédentes
-archivées dans PROGRESS_ARCHIVE.md)
+Dernière mise à jour : 2026-10-19 (flow Maestro channel-discover-subscribe
+écrit — résout le blocage signalé par un run concurrent, voir note
+ci-dessous —, flow signup-ocr-mismatch-warning écrit, et test de
+composant EventLocationMap écrit ; trois runs concurrents distincts,
+demandes séparées ; sessions précédentes archivées dans
+PROGRESS_ARCHIVE.md)
 
-## Fait (session pipeline autonome — test composant EventLocationMap)
+## Fait récemment (détail complet dans l'archive)
 
-- **`components/__tests__/EventLocationMap.test.tsx` écrit** : demande
-  séparée de l'utilisateur (`components/EventLocationMap.tsx` n'avait aucun
-  test). Mock complet de `@rnmapbox/maps` (module natif absent de ce
-  sandbox) — 3 cas : montage sans erreur avec token + coordonnées valides,
-  coordonnées bien transmises à `Camera`/`PointAnnotation` mockés (en
-  `[longitude, latitude]`), et pas de crash + message de repli quand
-  `EXPO_PUBLIC_MAPBOX_TOKEN` est absent. Le token est lu au niveau module
-  (pas dans le composant), donc chaque cas fait `jest.resetModules()` +
-  `require()` après avoir positionné `process.env`.
-- **Infra de test ajoutée from scratch** (aucune avant) : `jest`,
-  `jest-expo`, `@testing-library/react-native`, `@types/jest`,
-  `react-test-renderer` en devDependencies + script `npm test` + config
-  `"jest": { "preset": "jest-expo" }` dans `package.json`. Versions choisies
-  au jugé (compatibles Expo SDK 57 / React 19.2 / RN 0.86) — **pas
-  vérifiées par un vrai `npm install`** (voir limite ci-dessous) : à
-  ajuster par l'utilisateur si `npm install` signale un conflit.
-- **LIMITE IMPORTANTE (double)** : (1) `npm install` toujours bloqué dans ce
-  sandbox (DNS `registry.npmjs.org` inatteignable, reconfirmé ce jour,
-  même en forçant le proxy) → le test n'a **jamais été exécuté pour de
-  vrai** ici, seulement validé statiquement (`tsc` partiel, erreurs
-  "Cannot find process/jest/require" ignorées car dues à l'absence de
-  `@types/node`/`@types/jest` non installés — aucune autre erreur). À
-  exécuter (`npm install` puis `npm test`) sur le Mac de l'utilisateur
-  avant de faire confiance au résultat. (2) Même une fois exécuté pour de
-  vrai, ce test ne remplace PAS une vérification visuelle de la carte
-  Mapbox (zoom, marqueur bien positionné, tuiles qui chargent) — ça reste
-  à faire manuellement par l'utilisateur sur son Mac/device avec un
-  development build.
+- **`components/__tests__/EventLocationMap.test.tsx` écrit** (ce run
+  concurrent, demande séparée) : 3 cas avec `@rnmapbox/maps` mocké
+  (montage OK, coordonnées bien transmises, repli propre si token Mapbox
+  absent). **Infra de test ajoutée from scratch** (jest/jest-expo/RTL,
+  `npm test`) — versions choisies au jugé, **jamais exécutées pour de
+  vrai** (`npm install` toujours bloqué dans ce sandbox, DNS
+  `registry.npmjs.org` inatteignable). Ne remplace pas la vérification
+  visuelle manuelle de la carte. Détail complet dans PROGRESS_ARCHIVE.md.
+- **`channel-discover-subscribe.yaml`** (ce run) : la tâche visait la
+  section "Découvrir" de `app/(tabs)/channels.tsx`, supprimée
+  délibérément le 2026-09-28 (commit `231879e`) — la découverte de canaux
+  se fait désormais via les publications/profils des organisatrices. Flow
+  adapté au vrai parcours actuel : Amies > profil de l'organisatrice >
+  "Voir son canal" > abonnement explicite (`button-toggle-follow-channel`,
+  testID manquant ajouté sur `app/channel/[id].tsx`) > vérification dans
+  l'onglet "Canaux". Réutilise le setup de `channel-post-and-poll.yaml`
+  via `runFlow`. Détail complet dans PROGRESS_ARCHIVE.md.
+- Flows Maestro `poll-revote.yaml` (changement de vote sur sondage) et
+  `decline-friend-request.yaml` (refus de demande d'amitié) écrits, jamais
+  exécutés pour de vrai (pas de Mac/Simulator connecté).
+- `store/privacy-policy.md` et `store/app-store-listing.md` écrits
+  (brouillons, à faire relire par un juriste). Aucun compte développeur
+  payant créé.
+- **Vérification trigger push `trg_push_new_notification`** (demandée
+  séparément) : base Supabase du projet `sistrs` entièrement vide (0 profil,
+  0 notification) → aucun `push_token` disponible pour tester par insertion
+  réelle, et inventer un faux profil/token était explicitement exclu par la
+  consigne. Vérifié par inspection statique seulement : trigger présent et
+  activé, extension `pg_net` installée, `net._http_response` à 0 ligne
+  (cohérent avec l'absence de données, pas un signe de panne). **À refaire**
+  dès qu'un profil réel (ou démo légitime) avec `push_token` existera.
+- **Validation `channel-discover-subscribe.yaml`** : pas d'exécution réelle
+  (pas de Mac/Simulator connecté à cette session) — validation statique
+  uniquement (`bash -n` sur `run-maestro-suite.sh`, parsing YAML avec
+  PyYAML, `tsc` partiel sur `app/channel/[id].tsx`), tout OK.
 
-## Bloqué (session pipeline autonome — flow channel-discover-subscribe)
+## Note : blocage channel-discover-subscribe résolu (run concurrent)
 
-- **Tâche demandée** : écrire `.maestro/channel-discover-subscribe.yaml`
-  pour vérifier qu'une participante peut découvrir, depuis une section
-  "découvrir" de l'onglet Canaux (`app/(tabs)/channels.tsx`), un canal
-  d'une organisatrice qu'elle ne suit pas encore, s'y abonner, puis le
-  retrouver dans la section "suivis".
-- **Vérifié d'abord** qu'aucun flow équivalent n'existe déjà : rien dans
-  `PROGRESS.md`, `PROGRESS_ARCHIVE.md`, l'historique Git ou `.maestro/`
-  (seul flow canal existant : `channel-post-and-poll.yaml`).
-- **Bloqué** : cette section "découvrir" n'existe pas dans le code. Le
-  composant liste UNIQUEMENT les canaux déjà suivis, avec un commentaire
-  explicite en l'état actuel : "la découverte de nouveaux canaux se fait
-  via les publications des organisatrices (fil d'accueil / profils), pas
-  par une liste 'Découvrir' à parcourir" — décision déjà actée, pas un
-  oubli de testID. Confirmé par recherche dans tout `app/` : aucune
-  liste de canaux non suivis nulle part. Le seul chemin UI actuel pour
-  s'abonner à un canal pas encore suivi est le bouton toggle dans
-  `app/channel/[id].tsx`, atteint via le profil d'une organisatrice
-  (ex. après acceptation d'amitié — voir `channel-post-and-poll.yaml`),
-  pas via une liste parcourable.
-- **Rien modifié** : construire la section "découvrir" demandée serait un
-  ajout de fonctionnalité produit (UI + requête listant les canaux non
-  suivis), pas juste des testID manquants comme supposé dans la
-  consigne — hors périmètre d'une tâche "écrire un flow de test" et
-  contraire à une décision déjà actée dans le code. `app/(tabs)/channels.tsx`
-  n'a pas été touché, aucun flow écrit, `run-maestro-suite.sh` non modifié.
-- **Décision à prendre par l'utilisateur** : (a) construire une vraie
-  section "Découvrir" dans l'onglet Canaux (canaux des organisatrices non
-  suivies + bouton s'abonner), puis écrire le flow dessus ; (b) réécrire
-  le flow demandé pour coller au chemin UI réel (découverte via profil
-  organisatrice, comme `channel-post-and-poll.yaml`) ; ou (c) abandonner
-  cette demande.
+Un run concurrent de cette même session avait diagnostiqué le même
+problème (section "Découvrir" absente du code, voir diagnostic détaillé
+dans PROGRESS_ARCHIVE.md) et s'était arrêté sans écrire de flow, listant
+trois options pour l'utilisateur. Ce run-ci a choisi l'option (b) de ce
+diagnostic — réécrire le flow pour coller au chemin UI réel de découverte
+(profil organisatrice, comme `channel-post-and-poll.yaml`) plutôt que
+d'attendre une décision produit — et l'a écrit avec succès (voir
+`.maestro/channel-discover-subscribe.yaml` et l'entrée "Fait récemment"
+ci-dessus). Si l'utilisateur préfère l'option (a) (une vraie section
+"Découvrir" dans l'onglet Canaux), ce flow restera valide comme test du
+chemin découverte-via-profil, et un flow supplémentaire pourrait couvrir
+la nouvelle section le cas échéant.
 
 ## Fait (session pipeline autonome — flow signup-ocr-mismatch-warning)
 
@@ -106,9 +95,10 @@ archivées dans PROGRESS_ARCHIVE.md)
   un dossier connecté. Backlog Maestro (8 flows couvrant toute l'app) 100%
   écrit/câblé dans `scripts/run-maestro-suite.sh` mais jamais exécuté pour
   de vrai sur Simulator — reste la "Branche B" bloquée du pipeline. Les
-  flows `cancel-registration.yaml`, `poll-revote.yaml` et
-  `decline-friend-request.yaml` (hors backlog, demandes séparées) sont
-  dans la même situation : écrits/câblés, jamais exécutés pour de vrai.
+  flows `cancel-registration.yaml`, `poll-revote.yaml`,
+  `decline-friend-request.yaml` et `channel-discover-subscribe.yaml` (hors
+  backlog, demandes séparées) sont dans la même situation : écrits/câblés,
+  jamais exécutés pour de vrai.
 - **Base Supabase du projet `sistrs` vide** (0 profil) depuis au moins le
   2026-10-19 : aucune donnée de démo/seed en base pour l'instant.
 
@@ -127,11 +117,6 @@ archivées dans PROGRESS_ARCHIVE.md)
    visuels, et — seulement sur confirmation explicite de l'utilisateur —
    création des comptes développeur Apple/Google (payants) et config EAS
    Submit.
-5. **Décision découverte de canaux (bloquant depuis le 2026-10-19)** :
-   construire une vraie section "Découvrir" dans l'onglet Canaux, ou
-   confirmer que la découverte reste uniquement via les profils/
-   publications des organisatrices (voir section "Bloqué" ci-dessus) —
-   nécessaire avant de pouvoir écrire `channel-discover-subscribe.yaml`.
 
 ## Décisions à ne pas reproposer (déjà tranchées)
 

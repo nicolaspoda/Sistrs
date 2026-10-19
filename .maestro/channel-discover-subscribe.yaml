@@ -1,0 +1,69 @@
+# Vérifie qu'une participante peut s'abonner au canal d'une organisatrice
+# découvert via le profil de cette dernière (canal pas encore suivi),
+# puis le retrouver dans l'onglet "Canaux" (qui ne liste que les canaux
+# suivis).
+#
+# Note sur la demande initiale : la tâche visait une section "Découvrir"
+# (canaux non suivis) distincte de "suivis" dans
+# app/(tabs)/channels.tsx. Cette section a existé mais a été supprimée
+# délibérément le 2026-09-28 (commit 231879e, "refactor(channels):
+# Channels tab lists followed channels only") — la découverte de
+# nouveaux canaux se fait désormais via les publications/profils des
+# organisatrices, pas par une liste "Découvrir" à parcourir dans cet
+# onglet (voir le commentaire en tête de app/(tabs)/channels.tsx). Ce
+# flow teste donc le vrai parcours actuel de découverte + abonnement :
+# Amies > profil de l'organisatrice > "Voir son canal" (seul chemin UI
+# permettant d'atteindre le canal d'une organisatrice qu'on ne suit pas
+# encore, voir channel-post-and-poll.yaml) > abonnement explicite >
+# vérification dans "Canaux".
+#
+# Bug/lacune trouvé en écrivant ce flow : le bouton d'abonnement/
+# désabonnement sur app/channel/[id].tsx n'avait aucun testID (seul le
+# libellé "S'abonner"/"Abonnée" le distinguait, fragile si jamais
+# retraduit) — testID="button-toggle-follow-channel" ajouté dans cette
+# même session.
+#
+# Réutilise tel quel le setup de channel-post-and-poll.yaml (organisatrice
+# et participante devenues amies, canal avec post + sondage créés,
+# participante connectée sur l'écran du canal de l'organisatrice et ayant
+# déjà voté sur le sondage — SANS jamais s'être abonnée explicitement,
+# voir les commentaires de ce flow) via runFlow plutôt que de le
+# dupliquer intégralement.
+#
+# Usage (emails uniques à chaque run pour éviter "compte déjà existant") :
+#   maestro test \
+#     --env ORGANIZER_EMAIL=test.e2e.discover.org.$(date +%s)@example.com \
+#     --env ORGANIZER_PASSWORD=motdepasse123 \
+#     --env PARTICIPANT_EMAIL=test.e2e.discover.part.$(date +%s)@example.com \
+#     --env PARTICIPANT_PASSWORD=motdepasse123 \
+#     .maestro/channel-discover-subscribe.yaml
+#
+# Prérequis : identiques à channel-post-and-poll.yaml (pellicule du
+# Simulator avec au moins une photo, permission Photos déjà accordée à
+# l'app).
+appId: com.nicolaspoda.sistrs
+---
+- runFlow:
+    file: channel-post-and-poll.yaml
+    env:
+      ORGANIZER_EMAIL: "${ORGANIZER_EMAIL}"
+      ORGANIZER_PASSWORD: "${ORGANIZER_PASSWORD}"
+      PARTICIPANT_EMAIL: "${PARTICIPANT_EMAIL}"
+      PARTICIPANT_PASSWORD: "${PARTICIPANT_PASSWORD}"
+
+# === État de départ (fin de channel-post-and-poll.yaml) ===
+# La participante est connectée, sur l'écran du canal de l'organisatrice
+# "Camille Moreau" — canal découvert via son profil (après demande
+# d'amitié acceptée) mais jamais suivi : le bouton affiche encore
+# "S'abonner".
+- assertVisible: "S'abonner"
+
+# === Abonnement explicite au canal découvert ===
+- tapOn:
+    id: "button-toggle-follow-channel"
+- assertVisible: "Abonnée"
+
+# === Vérification : le canal apparaît bien dans "Canaux" (suivis) ===
+- tapOn: "Canaux"
+- assertVisible: "Camille Moreau"
+- assertVisible: "Suivi"
