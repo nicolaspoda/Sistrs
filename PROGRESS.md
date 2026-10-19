@@ -7,27 +7,40 @@
 > `PROGRESS_ARCHIVE.md` (déplacé là pour garder ce fichier court — le lire
 > seulement si un détail précis d'une session passée est nécessaire).
 
-Dernière mise à jour : 2026-10-19 (vérification trigger push
-`push_new_notification` ; sessions précédentes — flow Maestro
-decline-friend-request, contenu texte "prêt pour le store", flow
-poll-revote — archivées dans PROGRESS_ARCHIVE.md)
+Dernière mise à jour : 2026-10-19 (premier test automatisé de composant,
+`EventLocationMap` ; sessions précédentes archivées dans
+PROGRESS_ARCHIVE.md)
 
-## Fait récemment (détail complet dans l'archive)
+## Fait (session pipeline autonome — test composant EventLocationMap)
 
-- Flows Maestro `poll-revote.yaml` (changement de vote sur sondage) et
-  `decline-friend-request.yaml` (refus de demande d'amitié) écrits, jamais
-  exécutés pour de vrai (pas de Mac/Simulator connecté).
-- `store/privacy-policy.md` et `store/app-store-listing.md` écrits
-  (brouillons, à faire relire par un juriste). Aucun compte développeur
-  payant créé.
-- **Vérification trigger push `trg_push_new_notification`** (demandée
-  séparément) : base Supabase du projet `sistrs` entièrement vide (0 profil,
-  0 notification) → aucun `push_token` disponible pour tester par insertion
-  réelle, et inventer un faux profil/token était explicitement exclu par la
-  consigne. Vérifié par inspection statique seulement : trigger présent et
-  activé, extension `pg_net` installée, `net._http_response` à 0 ligne
-  (cohérent avec l'absence de données, pas un signe de panne). **À refaire**
-  dès qu'un profil réel (ou démo légitime) avec `push_token` existera.
+- **`components/__tests__/EventLocationMap.test.tsx` écrit** : demande
+  séparée de l'utilisateur (`components/EventLocationMap.tsx` n'avait aucun
+  test). Mock complet de `@rnmapbox/maps` (module natif absent de ce
+  sandbox) — 3 cas : montage sans erreur avec token + coordonnées valides,
+  coordonnées bien transmises à `Camera`/`PointAnnotation` mockés (en
+  `[longitude, latitude]`), et pas de crash + message de repli quand
+  `EXPO_PUBLIC_MAPBOX_TOKEN` est absent. Le token est lu au niveau module
+  (pas dans le composant), donc chaque cas fait `jest.resetModules()` +
+  `require()` après avoir positionné `process.env`.
+- **Infra de test ajoutée from scratch** (aucune avant) : `jest`,
+  `jest-expo`, `@testing-library/react-native`, `@types/jest`,
+  `react-test-renderer` en devDependencies + script `npm test` + config
+  `"jest": { "preset": "jest-expo" }` dans `package.json`. Versions choisies
+  au jugé (compatibles Expo SDK 57 / React 19.2 / RN 0.86) — **pas
+  vérifiées par un vrai `npm install`** (voir limite ci-dessous) : à
+  ajuster par l'utilisateur si `npm install` signale un conflit.
+- **LIMITE IMPORTANTE (double)** : (1) `npm install` toujours bloqué dans ce
+  sandbox (DNS `registry.npmjs.org` inatteignable, reconfirmé ce jour,
+  même en forçant le proxy) → le test n'a **jamais été exécuté pour de
+  vrai** ici, seulement validé statiquement (`tsc` partiel, erreurs
+  "Cannot find process/jest/require" ignorées car dues à l'absence de
+  `@types/node`/`@types/jest` non installés — aucune autre erreur). À
+  exécuter (`npm install` puis `npm test`) sur le Mac de l'utilisateur
+  avant de faire confiance au résultat. (2) Même une fois exécuté pour de
+  vrai, ce test ne remplace PAS une vérification visuelle de la carte
+  Mapbox (zoom, marqueur bien positionné, tuiles qui chargent) — ça reste
+  à faire manuellement par l'utilisateur sur son Mac/device avec un
+  development build.
 
 ## Repères opérationnels essentiels (voir archive pour le détail)
 
