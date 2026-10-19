@@ -8,7 +8,9 @@
 # Optionnel : TEST_PASSWORD=le-mot-de-passe-du-seed ./scripts/run-maestro-suite.sh
 #   (mot de passe du compte de test.participante@sistrs.app, voir
 #   supabase/dev-seed-test-participant.sql — sans ça, login.yaml et
-#   smoke_navigation.yaml sont sautés, seul signup-participant.yaml tourne)
+#   smoke_navigation.yaml sont sautés ; signup-participant.yaml et
+#   friend-request-flow.yaml tournent dans tous les cas, chacun avec ses
+#   propres comptes générés à la volée)
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -19,6 +21,15 @@ mkdir -p "$REPORT_DIR"
 
 SIGNUP_EMAIL="test.e2e.$(date +%s)@example.com"
 SIGNUP_PASSWORD="motdepasse123"
+
+# Identifiants dédiés à friend-request-flow.yaml (deux comptes, future
+# amie + demandeuse) — un suffixe "friend"/"requester" pour rester unique
+# même si ce script tourne deux fois dans la même seconde que les
+# variables ci-dessus.
+FRIEND_REQUEST_FRIEND_EMAIL="test.e2e.friend.$(date +%s)@example.com"
+FRIEND_REQUEST_FRIEND_PASSWORD="motdepasse123"
+FRIEND_REQUEST_REQUESTER_EMAIL="test.e2e.requester.$(date +%s)@example.com"
+FRIEND_REQUEST_REQUESTER_PASSWORD="motdepasse123"
 
 {
   echo "=== Run Maestro $TIMESTAMP ==="
@@ -47,6 +58,12 @@ run_flow() {
 run_flow "signup-participant.yaml" \
   --env SIGNUP_EMAIL="$SIGNUP_EMAIL" \
   --env SIGNUP_PASSWORD="$SIGNUP_PASSWORD"
+
+run_flow "friend-request-flow.yaml" \
+  --env FRIEND_EMAIL="$FRIEND_REQUEST_FRIEND_EMAIL" \
+  --env FRIEND_PASSWORD="$FRIEND_REQUEST_FRIEND_PASSWORD" \
+  --env REQUESTER_EMAIL="$FRIEND_REQUEST_REQUESTER_EMAIL" \
+  --env REQUESTER_PASSWORD="$FRIEND_REQUEST_REQUESTER_PASSWORD"
 
 if [ -n "${TEST_PASSWORD:-}" ]; then
   run_flow "login.yaml" \
