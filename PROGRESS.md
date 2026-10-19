@@ -5,10 +5,54 @@
 > entier avant de reprendre le travail, surtout après un changement de
 > compte/session Claude Code.
 
-Dernière mise à jour : 2026-10-19 (session : flows Maestro messaging-send et
-channel-post-and-poll ajoutés, bug bloquant trouvé et corrigé — aucun point
-d'entrée UI vers le canal d'une organisatrice —, nettoyage d'une PR
-dupliquée ouverte par un run précédent/concurrent)
+Dernière mise à jour : 2026-10-19 (session : flow Maestro event-review
+finalisé — item 6 du backlog — après une collision avec un run concurrent
+sur exactement la même tâche, voir le point "Problème structurel" plus
+bas, important pour la suite du pipeline)
+
+## Fait (session pipeline autonome — flow event-review, finalisation)
+
+- **Collision avec un run concurrent sur le même item de backlog** : cette
+  session a commencé à écrire `.maestro/event-review.yaml` (item 6) via une
+  approche différente (appel direct à l'API Supabase pour faire passer un
+  événement fraîchement créé dans le passé, authentifié avec les
+  identifiants de l'organisatrice — contourne la contrainte
+  `minimumDate={new Date()}` du formulaire de création). En voulant pousser
+  la branche `feat/maestro-event-review-flow`, elle existait déjà côté
+  GitHub : un **autre run de cette même tâche planifiée, exécuté en
+  parallèle**, avait déjà écrit et poussé une implémentation différente et
+  plus idiomatique du même item (réutilise le compte de test seedé par
+  `supabase/dev-seed-test-participant.sql`, comme `login.yaml`/
+  `smoke_navigation.yaml`, plutôt que d'appeler l'API en direct pendant le
+  flow). Plutôt que de dupliquer (comme la PR #6, fermée plus tôt pour la
+  même raison), cette session a **abandonné sa propre implémentation** et
+  terminé celle déjà poussée à sa place : corrigé le bit exécutable perdu
+  sur `scripts/run-maestro-suite.sh`, et ouvert
+  [PR #8](https://github.com/nicolaspoda/Sistrs/pull/8) (pas encore
+  mergée). **Item 6 est donc fait, voir PR #8** — ne pas le redupliquer.
+- **Problème structurel à régler côté réglages de la tâche planifiée** :
+  c'est la **deuxième fois** que deux runs de cette tâche travaillent en
+  parallèle sur le même item de backlog sans le savoir (la première fois a
+  donné la PR #6, fermée comme doublon). Plusieurs runs ont aussi été
+  observés en train de fusionner des PR en plein milieu de l'exécution
+  d'un autre run (PR #5 et #7 mergées alors que cette session travaillait
+  encore sur `main`, nécessitant un rebase). Cela suggère que la tâche
+  planifiée se déclenche plus souvent/plus en parallèle que prévu (horaire
+  + auto-enchaînement `fire_trigger` combinés ?). **Suggestion** : vérifier
+  la fréquence réelle du déclenchement horaire et envisager soit un
+  verrou (un seul run actif à la fois), soit de ne reprendre le backlog
+  qu'après avoir vérifié l'état GitHub le plus frais possible juste avant
+  de choisir une tâche (déjà fait ici, mais la fenêtre entre vérification
+  et push reste une course possible). Pas d'action automatique prise
+  au-delà de cette note — décision d'outillage qui dépasse le cadre d'un
+  run.
+- **Mac joignable mais aucun dossier connecté à cette session** (même
+  constat que tous les runs précédents) : branche B (test E2E réel) non
+  tentée pour cette raison.
+- **Pas de ré-enchaînement (`fire_trigger`) ce run**, volontairement : vu
+  la collision ci-dessus, ajouter un troisième run concurrent aggraverait
+  le problème plutôt que de le résoudre. Le cron horaire reprendra la
+  suite (item 7, `notifications.yaml`) à son prochain passage normal.
 
 ## Fait (session pipeline autonome — flow channel-post-and-poll)
 
@@ -601,8 +645,10 @@ lancer localement à la fin de cette section.
      vrai sur Simulator (Mac non connecté à ce run). A aussi permis de
      trouver et corriger un vrai bug bloquant (aucun point d'entrée UI
      vers le canal d'une organisatrice). Mergé via PR #7.
-  6. `event-review.yaml` — avis (note + commentaire) sur un événement
-     passé.
+  6. ~~`event-review.yaml`~~ **fait le 2026-10-19** (voir section "Fait
+     (session pipeline autonome — flow event-review, finalisation)" plus
+     haut) — écrit et câblé dans le script, pas encore exécuté pour de
+     vrai sur Simulator. PR #8 ouverte, pas encore mergée.
   7. `notifications.yaml` — vérifie qu'une notification in-app apparaît
      après une des actions ci-dessus (demande d'amie, inscription
      confirmée...).
