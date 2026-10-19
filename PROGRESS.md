@@ -7,11 +7,11 @@
 > `PROGRESS_ARCHIVE.md` (déplacé là pour garder ce fichier court — le lire
 > seulement si un détail précis d'une session passée est nécessaire).
 
-Dernière mise à jour : 2026-10-19 (premier test automatisé de composant
-`EventLocationMap`, et session pipeline autonome bloquée sur le flow
-Maestro `channel-discover-subscribe.yaml` — deux sessions distinctes,
-demandes séparées ; sessions précédentes archivées dans
-PROGRESS_ARCHIVE.md)
+Dernière mise à jour : 2026-10-19 (test de composant EventLocationMap,
+flow Maestro signup-ocr-mismatch-warning écrit, et session pipeline
+autonome bloquée sur le flow Maestro `channel-discover-subscribe.yaml` —
+trois sessions distinctes, demandes séparées ; sessions précédentes
+archivées dans PROGRESS_ARCHIVE.md)
 
 ## Fait (session pipeline autonome — test composant EventLocationMap)
 
@@ -78,6 +78,17 @@ PROGRESS_ARCHIVE.md)
   organisatrice, comme `channel-post-and-poll.yaml`) ; ou (c) abandonner
   cette demande.
 
+## Fait (session pipeline autonome — flow signup-ocr-mismatch-warning)
+
+- **`.maestro/signup-ocr-mismatch-warning.yaml` écrit** (détail complet
+  dans PROGRESS_ARCHIVE.md) : avertissement OCR non bloquant à
+  l'inscription en cas de nom/prénom ne correspondant pas à la pièce
+  d'identité uploadée — nom volontairement différent de celui de la
+  fausse carte de test pour forcer le mismatch de façon déterministe,
+  avertissement vérifié, bypass au second appui vérifié. Ajouté à
+  `scripts/run-maestro-suite.sh`. Jamais exécuté pour de vrai (pas de
+  Mac/Simulator connecté).
+
 ## Repères opérationnels essentiels (voir archive pour le détail)
 
 - **Workflow** : commits directs sur `main`, jamais de branche/PR (décision
@@ -110,8 +121,8 @@ PROGRESS_ARCHIVE.md)
    atteint en cours de route, jamais repris).
 3. **RLS à revisiter** : policies actuelles privilégient la simplicité
    (lecture large aux authentifiées) plutôt qu'une confidentialité stricte.
-4. **Backlog "prêt pour le store"** : contenu texte fait (voir ci-dessus,
-   `store/`). Reste : relecture juridique de la politique de
+4. **Backlog "prêt pour le store"** : contenu texte fait (`store/`, détail
+   dans PROGRESS_ARCHIVE.md). Reste : relecture juridique de la politique de
    confidentialité, hébergement à une URL publique, captures d'écran et
    visuels, et — seulement sur confirmation explicite de l'utilisateur —
    création des comptes développeur Apple/Google (payants) et config EAS

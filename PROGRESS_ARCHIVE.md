@@ -5,6 +5,27 @@
 > d'~50 lignes). Les décisions encore actives et le backlog courant restent
 > dans `PROGRESS.md`; ce fichier est pour archive/contexte seulement.
 
+## Fait (session pipeline autonome — flow signup-ocr-mismatch-warning)
+
+- **`.maestro/signup-ocr-mismatch-warning.yaml` écrit** : parcours non
+  testé jusqu'ici — avertissement OCR non bloquant à l'inscription quand
+  le nom/prénom saisis ne correspondent pas au texte lu sur la pièce
+  d'identité (`lib/id-ocr.ts`). Réutilise le raccourci développeur
+  `link-dev-use-test-id` (même fausse carte "MARTIN Lea" que les autres
+  flows de signup) mais saisit délibérément un nom différent ("Dubois")
+  pour forcer le mismatch de façon déterministe, plutôt que de compter
+  sur le mismatch de date de naissance déjà présent par accident dans
+  `signup-participant.yaml`/`signup-organizer.yaml`. Vérifie que
+  l'avertissement s'affiche (texte "On n'a pas retrouvé...") et que le
+  bouton devenu "Continuer quand même" passe outre au second appui pour
+  terminer l'inscription normalement. Ajouté à
+  `scripts/run-maestro-suite.sh` (`run_flow
+  "signup-ocr-mismatch-warning.yaml"` avec ses propres identifiants
+  `OCR_MISMATCH_EMAIL`/`OCR_MISMATCH_PASSWORD`).
+- **Validation effectuée** : pas d'exécution réelle (pas de Mac/Simulator
+  connecté à cette session) — validation statique uniquement (`bash -n`
+  sur `run-maestro-suite.sh`, parsing YAML du nouveau flow avec PyYAML).
+
 ## Fait (session pipeline autonome — flow decline-friend-request)
 
 - **`.maestro/decline-friend-request.yaml` écrit** : demande séparée de
@@ -1029,31 +1050,6 @@ lancer localement à la fin de cette section.
   l'utilisateur** : ces comptes développeur payants ne doivent pas être
   créés automatiquement par le pipeline — à confirmer explicitement le
   moment venu.
-
-## Fait (session pipeline autonome — flow poll-revote)
-
-- **`.maestro/poll-revote.yaml` écrit** : demande séparée de l'utilisateur
-  (pas dans le backlog "Flows Maestro manquants", déjà entièrement fait,
-  items 1-8). `channel-post-and-poll.yaml` (item 5) ne testait que le
-  PREMIER vote sur un sondage ; ce nouveau flow vérifie le CHANGEMENT de
-  vote : la participante vote pour "Un karaoke", puis change pour "Un bar
-  a cocktails", et on vérifie que l'ancienne option repasse à 0 % pendant
-  que la nouvelle passe à 100 % (total toujours à 1 vote, jamais 2).
-  Réutilise tel quel le setup de `channel-post-and-poll.yaml` via
-  `runFlow` plutôt que de le dupliquer. Pas de testID dédié sur les
-  options de sondage affichées (seuls les champs de création en ont) :
-  vérification par le pourcentage affiché à côté du libellé de chaque
-  option, via le sélecteur relatif Maestro `rightOf` (jamais utilisé
-  jusqu'ici dans ce repo, mais documenté côté Maestro). Ajouté à
-  `scripts/run-maestro-suite.sh` (`run_flow "poll-revote.yaml"` avec ses
-  propres variables `REVOTE_ORGANIZER_EMAIL`/`REVOTE_PARTICIPANT_EMAIL`,
-  indépendantes de celles de `channel-post-and-poll.yaml`).
-- **Validation effectuée** : pas d'exécution réelle (pas de Mac/Simulator
-  connecté à cette session) — validation statique uniquement (`bash -n`
-  sur `run-maestro-suite.sh`, parsing YAML du nouveau flow avec PyYAML),
-  les deux OK. Le sélecteur `rightOf` n'a donc pas pu être vérifié sur un
-  vrai Simulator — à surveiller en premier si ce flow échoue à sa
-  première exécution réelle.
 
 ## Fait (session pipeline autonome — vérification trigger push_new_notification)
 

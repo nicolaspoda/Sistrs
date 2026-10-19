@@ -27,6 +27,14 @@ SIGNUP_PASSWORD="motdepasse123"
 SIGNUP_ORGANIZER_EMAIL="test.e2e.organizer.$(date +%s)@example.com"
 SIGNUP_ORGANIZER_PASSWORD="motdepasse123"
 
+# Identifiants dédiés à signup-ocr-mismatch-warning.yaml (un seul compte,
+# nom volontairement différent de celui imprimé sur la fausse carte de
+# test pour forcer l'avertissement OCR) — suffixe "ocrmismatch" pour
+# rester unique même si ce script tourne deux fois dans la même seconde
+# que les variables ci-dessus.
+OCR_MISMATCH_EMAIL="test.e2e.ocrmismatch.$(date +%s)@example.com"
+OCR_MISMATCH_PASSWORD="motdepasse123"
+
 # Identifiants dédiés à event-create-and-register.yaml (deux comptes,
 # organisatrice + participante) — un suffixe "org"/"part" pour rester
 # unique même si ce script tourne deux fois dans la même seconde que les
@@ -145,6 +153,10 @@ run_flow "signup-participant.yaml" \
 run_flow "signup-organizer.yaml" \
   --env SIGNUP_EMAIL="$SIGNUP_ORGANIZER_EMAIL" \
   --env SIGNUP_PASSWORD="$SIGNUP_ORGANIZER_PASSWORD"
+
+run_flow "signup-ocr-mismatch-warning.yaml" \
+  --env SIGNUP_EMAIL="$OCR_MISMATCH_EMAIL" \
+  --env SIGNUP_PASSWORD="$OCR_MISMATCH_PASSWORD"
 
 run_flow "event-create-and-register.yaml" \
   --env ORGANIZER_EMAIL="$EVENT_ORGANIZER_EMAIL" \

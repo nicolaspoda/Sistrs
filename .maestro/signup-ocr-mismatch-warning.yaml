@@ -1,0 +1,115 @@
+# Vérifie l'avertissement OCR non bloquant lors de l'inscription : si le
+# nom/prénom saisis ne correspondent pas au texte lu sur la pièce
+# d'identité (le raccourci développeur charge toujours la même fausse
+# carte "MARTIN Lea", voir assets/dev/fake-id-card.png), un avertissement
+# s'affiche et le bouton "Continuer" devient "Continuer quand même" sans
+# changer d'écran (app/(auth)/sign-up.tsx) — un second appui passe outre
+# et termine l'inscription normalement.
+#
+# On saisit ici volontairement un nom différent ("Dubois") de celui
+# imprimé sur la fausse carte ("Martin") pour forcer le mismatch de façon
+# déterministe, plutôt que de compter sur le mismatch de date de
+# naissance déjà présent (mais non intentionnel) dans
+# signup-participant.yaml/signup-organizer.yaml (date de naissance par
+# défaut "aujourd'hui - 25 ans" vs. date fixe 15.03.1998 sur la carte —
+# ce mismatch de date se déclenche aussi ici, donc le message combine
+# nom/prénom ET date de naissance : c'est attendu et fait partie de ce
+# qu'on vérifie).
+#
+# Usage (email unique à chaque run) :
+#   maestro test \
+#     --env SIGNUP_EMAIL=test.e2e.ocrmismatch.$(date +%s)@example.com \
+#     --env SIGNUP_PASSWORD=motdepasse123 \
+#     .maestro/signup-ocr-mismatch-warning.yaml
+#
+# Prérequis : identiques à signup-participant.yaml (raccourci développeur
+# link-dev-use-test-id ; pas de dépendance à la pellicule Photos du
+# Simulator pour ce flow).
+appId: com.nicolaspoda.sistrs
+---
+- launchApp:
+    clearState: true
+# Premier lancement après clearState : Metro doit resservir/recharger le
+# bundle JS, ce qui dépasse le délai d'attente implicite par défaut de
+# Maestro sur certaines machines — on attend explicitement plus longtemps.
+- extendedWaitUntil:
+    visible: "S'inscrire"
+    timeout: 30000
+- tapOn: "S'inscrire"
+
+# --- Étape 1 : Tes informations ---
+# Prénom gardé identique à la carte ("Lea") mais NOM délibérément
+# différent ("Dubois" au lieu de "Martin") pour forcer le mismatch OCR du
+# nom/prénom de façon déterministe.
+- tapOn:
+    id: "input-first-name"
+- inputText: "Lea"
+- tapOn:
+    id: "input-last-name"
+- inputText: "Dubois"
+- tapOn: "Tes informations"  # tap sur un texte statique pour fermer le clavier (hideKeyboard non fiable ici)
+
+# Date de naissance : on garde le défaut pré-sélectionné par l'app
+# ("aujourd'hui - 25 ans", toujours majeure) plutôt que de naviguer le
+# calendrier — voir le commentaire en tête de fichier sur le mismatch de
+# date combiné.
+- tapOn:
+    id: "input-birth-date"
+- tapOn: "Valider"
+
+- tapOn:
+    id: "input-email"
+- inputText: "${SIGNUP_EMAIL}"
+# Maestro/XCTest ne saisit pas fiablement dans un UITextField avec
+# secureTextEntry actif — on bascule les deux champs en "mot de passe
+# visible" AVANT de taper quoi que ce soit, puis on ne retouche plus au
+# bouton oeil (voir le commentaire équivalent dans signup-participant.yaml).
+- tapOn:
+    id: "input-password-toggle-visibility"
+- tapOn:
+    id: "input-confirm-password-toggle-visibility"
+- tapOn:
+    id: "input-password"
+- inputText: "${SIGNUP_PASSWORD}"
+- tapOn:
+    id: "input-confirm-password"
+- inputText: "${SIGNUP_PASSWORD}"
+- tapOn: "Tes informations"  # tap sur un texte statique pour fermer le clavier (hideKeyboard non fiable ici)
+
+- tapOn:
+    id: "role-participant"
+
+# --- Pièce d'identité ---
+# Raccourci développeur (voir signup-participant.yaml) : charge toujours
+# la même fausse carte "MARTIN Lea, née le 15.03.1998".
+- tapOn:
+    id: "link-dev-use-test-id"
+- assertVisible: "Pièce d'identité ajoutée ✓"
+
+# Premier appui : déclenche le contrôle OCR (lib/id-ocr.ts), qui doit
+# échouer sur le nom (et la date, voir commentaire en tête de fichier) et
+# afficher l'avertissement SANS changer d'écran — comportement central
+# vérifié par ce flow.
+- tapOn:
+    id: "button-continue-step1"
+- assertVisible: "On n'a pas retrouvé.*sur la pièce fournie.*"
+- assertVisible: "Continuer quand même"
+
+# Second appui sur le même bouton (libellé devenu "Continuer quand
+# même") : passe outre l'avertissement et termine l'inscription
+# normalement, comme le ferait une utilisatrice réelle.
+- tapOn:
+    id: "button-continue-step1"
+
+# --- Étape 2 : Tes préférences ---
+- tapOn:
+    id: "age-bracket-18-25"
+- tapOn: "Bar"
+- tapOn: "Restau"
+- tapOn:
+    id: "link-dev-bypass-faceid"
+- assertVisible: "Face ID activé ✓"
+
+- tapOn:
+    id: "button-create-account"
+- assertVisible: "Compte créé avec succès.*"
