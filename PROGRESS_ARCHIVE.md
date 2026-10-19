@@ -959,7 +959,7 @@ lancer localement à la fin de cette section.
   créés automatiquement par le pipeline — à confirmer explicitement le
   moment venu.
 
-## Session pipeline autonome — flow poll-revote (2026-10-19)
+## Fait (session pipeline autonome — flow poll-revote)
 
 - **`.maestro/poll-revote.yaml` écrit** : demande séparée de l'utilisateur
   (pas dans le backlog "Flows Maestro manquants", déjà entièrement fait,
@@ -983,3 +983,32 @@ lancer localement à la fin de cette section.
   les deux OK. Le sélecteur `rightOf` n'a donc pas pu être vérifié sur un
   vrai Simulator — à surveiller en premier si ce flow échoue à sa
   première exécution réelle.
+
+## Fait (session pipeline autonome — vérification trigger push_new_notification)
+
+- **Tâche** : vérifier côté backend (via connecteur Supabase MCP, projet
+  `sistrs` = `grwwoigglxuqkgzvijky`) que le trigger `trg_push_new_notification`
+  (migration `20260928060000_push_notifications.sql`, appelle
+  `https://exp.host/--/api/v2/push/send` via `pg_net`) fonctionne réellement,
+  jamais vérifié jusqu'ici automatiquement.
+- **Constat** : base de données du projet Supabase entièrement vide (0 ligne
+  dans `profiles`, 0 dans `notifications` — projet créé le 2026-10-18, pas de
+  données de seed/démo). Impossible de trouver un profil de démo avec
+  `push_token` renseigné puisqu'il n'existe tout simplement aucun profil.
+  Créer un profil de test en inventerait un (et il faudrait aussi une entrée
+  `auth.users` fictive pour respecter la contrainte 1:1) — exclu par la
+  consigne de la tâche ("ne pas inventer un faux [profil/push_token] qui
+  fausserait les données"). Vérification par insertion de notification réelle
+  donc **non réalisable** pour l'instant, faute de toute donnée en base.
+- **Vérifié malgré tout par inspection statique** (sans insertion) : trigger
+  `trg_push_new_notification` présent sur `notifications`, activé
+  (`tgenabled = 'O'`) ; extension `pg_net` installée (v0.20.4) ; table
+  `net._http_response` (historique des appels pg_net) à 0 ligne — confirme
+  qu'aucun appel sortant vers `exp.host` n'a jamais été tenté à ce jour, ce
+  qui est cohérent avec l'absence totale de notifications en base plutôt
+  qu'avec un dysfonctionnement du trigger.
+- **À refaire** dès qu'un profil réel avec `push_token` existe (premier
+  utilisateur réel inscrit sur mobile avec permissions push acceptées, ou
+  dès que des comptes de démo/seed sont créés légitimement) : insérer une
+  notification de test et relire `net._http_response` pour le code de statut
+  reçu depuis `exp.host`.

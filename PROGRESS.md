@@ -7,56 +7,27 @@
 > `PROGRESS_ARCHIVE.md` (déplacé là pour garder ce fichier court — le lire
 > seulement si un détail précis d'une session passée est nécessaire).
 
-Dernière mise à jour : 2026-10-19 (flow Maestro decline-friend-request
-écrit, et contenu texte "prêt pour le store" écrit — deux sessions
-distinctes, demandes séparées ; sessions précédentes archivées dans
-PROGRESS_ARCHIVE.md)
+Dernière mise à jour : 2026-10-19 (vérification trigger push
+`push_new_notification` ; sessions précédentes — flow Maestro
+decline-friend-request, contenu texte "prêt pour le store", flow
+poll-revote — archivées dans PROGRESS_ARCHIVE.md)
 
-## Fait (session pipeline autonome — flow decline-friend-request)
+## Fait récemment (détail complet dans l'archive)
 
-- **`.maestro/decline-friend-request.yaml` écrit** : demande séparée de
-  l'utilisateur (pas dans le backlog "Flows Maestro manquants", déjà
-  entièrement fait, items 1-8). `friend-request-flow.yaml` ne couvrait
-  que l'ACCEPTATION d'une demande d'amitié ; ce nouveau flow couvre le
-  REFUS, jusque-là non testé. Deux comptes ("Chloé Fontaine"/FRIEND_*,
-  "Inès Marchand"/REQUESTER_*) — noms de famille différents de
-  friend-request-flow.yaml ("Rousseau"/"Girard") pour que la recherche
-  par nom ne remonte jamais un profil de l'autre flow sur un run
-  partagé. Inès envoie la demande à Chloé, qui la refuse via
-  `button-decline-friend-request` (testID déjà existant). Vérifie que la
-  demande disparaît de l'onglet "Demandes" (état vide "Aucune demande en
-  attente") ET que les deux comptes n'apparaissent PAS comme amies
-  ensuite, des deux côtés : onglet "Mes amies" vide pour Chloé, puis
-  reconnexion avec Inès pour vérifier que son onglet "Mes amies" est vide
-  aussi. `handleDecline` dans `app/(tabs)/friends.tsx` fait un DELETE
-  direct de la ligne `friendships` (pas un changement de statut), d'où
-  cette vérification symétrique des deux côtés. Ajouté à
-  `scripts/run-maestro-suite.sh` (`run_flow "decline-friend-request.yaml"`
-  avec ses propres variables `DECLINE_FRIEND_EMAIL`/
-  `DECLINE_REQUESTER_EMAIL`, indépendantes de celles de
-  `friend-request-flow.yaml`).
-- **Validation effectuée** : pas d'exécution réelle (pas de Mac/Simulator
-  connecté à cette session) — validation statique uniquement (`bash -n`
-  sur `run-maestro-suite.sh`, parsing YAML du nouveau flow avec PyYAML),
-  les deux OK.
-
-## Fait (session pipeline autonome — contenu texte store)
-
-- **`store/privacy-policy.md` et `store/app-store-listing.md` écrits**
-  (brouillons texte uniquement, à faire relire par un juriste avant mise
-  en ligne réelle) : politique de confidentialité en français couvrant la
-  collecte du genre déclaré, de la pièce d'identité (stockage privé,
-  OCR on-device non bloquant, pas de prestataire KYC), de la
-  géolocalisation, de la messagerie, et des sous-traitants (Supabase,
-  Expo, Mapbox) ; fiche store avec description courte/longue, catégorie
-  suggérée, mots-clés, et une proposition de classification d'âge (17+
-  App Store / Mature 17+ Play Store, à confirmer via les questionnaires
-  officiels) justifiée par le contenu généré par les utilisatrices et les
-  références à l'alcool (sorties bar).
-- **Aucun compte développeur payant créé, aucune config EAS Submit** —
-  conformément à la règle non négociable de la tâche. Noté explicitement
-  dans `store/app-store-listing.md` comme décision en attente de
-  l'utilisateur.
+- Flows Maestro `poll-revote.yaml` (changement de vote sur sondage) et
+  `decline-friend-request.yaml` (refus de demande d'amitié) écrits, jamais
+  exécutés pour de vrai (pas de Mac/Simulator connecté).
+- `store/privacy-policy.md` et `store/app-store-listing.md` écrits
+  (brouillons, à faire relire par un juriste). Aucun compte développeur
+  payant créé.
+- **Vérification trigger push `trg_push_new_notification`** (demandée
+  séparément) : base Supabase du projet `sistrs` entièrement vide (0 profil,
+  0 notification) → aucun `push_token` disponible pour tester par insertion
+  réelle, et inventer un faux profil/token était explicitement exclu par la
+  consigne. Vérifié par inspection statique seulement : trigger présent et
+  activé, extension `pg_net` installée, `net._http_response` à 0 ligne
+  (cohérent avec l'absence de données, pas un signe de panne). **À refaire**
+  dès qu'un profil réel (ou démo légitime) avec `push_token` existera.
 
 ## Repères opérationnels essentiels (voir archive pour le détail)
 
@@ -78,6 +49,8 @@ PROGRESS_ARCHIVE.md)
   flows `cancel-registration.yaml`, `poll-revote.yaml` et
   `decline-friend-request.yaml` (hors backlog, demandes séparées) sont
   dans la même situation : écrits/câblés, jamais exécutés pour de vrai.
+- **Base Supabase du projet `sistrs` vide** (0 profil) depuis au moins le
+  2026-10-19 : aucune donnée de démo/seed en base pour l'instant.
 
 ## En cours / à faire ensuite
 
