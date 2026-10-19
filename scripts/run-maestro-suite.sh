@@ -55,6 +55,15 @@ MESSAGING_SENDER_PASSWORD="motdepasse123"
 MESSAGING_FIRST_MESSAGE="Coucou, ça te dit la soirée de vendredi ?"
 MESSAGING_REPLY_MESSAGE="Oui carrément, j'ai hâte !"
 
+# Identifiants dédiés à channel-post-and-poll.yaml (deux comptes,
+# organisatrice + participante) — un suffixe "channel.org"/"channel.part"
+# pour rester unique même si ce script tourne deux fois dans la même
+# seconde que les variables ci-dessus.
+CHANNEL_ORGANIZER_EMAIL="test.e2e.channel.org.$(date +%s)@example.com"
+CHANNEL_ORGANIZER_PASSWORD="motdepasse123"
+CHANNEL_PARTICIPANT_EMAIL="test.e2e.channel.part.$(date +%s)@example.com"
+CHANNEL_PARTICIPANT_PASSWORD="motdepasse123"
+
 {
   echo "=== Run Maestro $TIMESTAMP ==="
   echo "Email généré pour signup-participant : $SIGNUP_EMAIL"
@@ -108,6 +117,12 @@ run_flow "messaging-send.yaml" \
   --env SENDER_PASSWORD="$MESSAGING_SENDER_PASSWORD" \
   --env FIRST_MESSAGE="$MESSAGING_FIRST_MESSAGE" \
   --env REPLY_MESSAGE="$MESSAGING_REPLY_MESSAGE"
+
+run_flow "channel-post-and-poll.yaml" \
+  --env ORGANIZER_EMAIL="$CHANNEL_ORGANIZER_EMAIL" \
+  --env ORGANIZER_PASSWORD="$CHANNEL_ORGANIZER_PASSWORD" \
+  --env PARTICIPANT_EMAIL="$CHANNEL_PARTICIPANT_EMAIL" \
+  --env PARTICIPANT_PASSWORD="$CHANNEL_PARTICIPANT_PASSWORD"
 
 if [ -n "${TEST_PASSWORD:-}" ]; then
   run_flow "login.yaml" \

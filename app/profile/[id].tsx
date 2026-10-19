@@ -148,6 +148,7 @@ export default function OtherProfileScreen() {
 
         {profile.role === "organizer" && channelId ? (
           <PrimaryButton
+            testID="button-view-channel"
             label="Voir son canal"
             variant="outline"
             onPress={() => router.push(`/channel/${channelId}`)}

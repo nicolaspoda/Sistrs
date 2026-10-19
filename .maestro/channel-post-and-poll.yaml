@@ -1,0 +1,301 @@
+# Une organisatrice publie un post et un sondage dans son propre canal,
+# puis une participante (devenue son amie) les découvre et vote sur le
+# sondage. Couvre l'item 5 du backlog "Flows Maestro manquants" dans
+# PROGRESS.md.
+#
+# Bug trouvé et corrigé en écrivant ce flow : il n'existait jusqu'ici
+# AUCUN point d'entrée dans l'UI permettant à une organisatrice d'atteindre
+# son propre canal (app/channel/[id].tsx). Elle n'est pas auto-abonnée à
+# son propre canal (donc absente de l'onglet Canaux, qui ne liste que les
+# canaux suivis), et `app/profile/[id].tsx` (qui porte le bouton "Voir son
+# canal") ne s'affiche que pour le profil d'une AUTRE personne, jamais pour
+# soi-même. Sans le nouveau bouton "Voir mon canal" ajouté à l'onglet
+# Profil (app/(tabs)/profile.tsx, cette même session), il était donc
+# impossible de publier un post ou un sondage depuis l'app, malgré le
+# canal créé automatiquement par le trigger SQL
+# `trg_ensure_organizer_channel`.
+#
+# Pour atteindre ce canal côté PARTICIPANTE (elle non plus n'est listée
+# dans "Canaux" tant qu'elle ne s'y est pas abonnée, et la recherche de
+# l'onglet Amies > Trouver ne permet pas de naviguer vers un profil), ce
+# flow passe par une demande d'amitié acceptée puis l'onglet "Mes amies"
+# (qui, lui, navigue vers le profil de l'organisatrice), suivi du bouton
+# "Voir son canal" — aucun abonnement explicite au canal n'est donc
+# nécessaire pour voter sur un sondage, exactement comme dans l'app réelle.
+#
+# Usage (emails uniques à chaque run pour éviter "compte déjà existant") :
+#   maestro test \
+#     --env ORGANIZER_EMAIL=test.e2e.channel.organizer.$(date +%s)@example.com \
+#     --env ORGANIZER_PASSWORD=motdepasse123 \
+#     --env PARTICIPANT_EMAIL=test.e2e.channel.participant.$(date +%s)@example.com \
+#     --env PARTICIPANT_PASSWORD=motdepasse123 \
+#     .maestro/channel-post-and-poll.yaml
+#
+# Prérequis : identiques aux autres flows de signup — pellicule du
+# Simulator avec au moins une photo, permission Photos déjà accordée à
+# l'app (les deux comptes passent par le raccourci développeur pour la
+# pièce d'identité, pas par le vrai sélecteur de photos natif).
+appId: com.nicolaspoda.sistrs
+---
+# === Compte organisatrice : "Camille Moreau" ===
+- launchApp:
+    clearState: true
+# Premier lancement après clearState : Metro doit resservir/recharger le
+# bundle JS, ce qui dépasse le délai d'attente implicite par défaut de
+# Maestro sur certaines machines — on attend explicitement plus longtemps.
+- extendedWaitUntil:
+    visible: "S'inscrire"
+    timeout: 30000
+- tapOn: "S'inscrire"
+
+# --- Étape 1 : Tes informations ---
+- tapOn:
+    id: "input-first-name"
+- inputText: "Camille"
+- tapOn:
+    id: "input-last-name"
+- inputText: "Moreau"
+- tapOn: "Tes informations"  # tap sur un texte statique pour fermer le clavier (hideKeyboard non fiable ici)
+
+# Date de naissance : on garde le défaut pré-sélectionné par l'app
+# ("aujourd'hui - 25 ans", toujours majeure) plutôt que de naviguer le
+# calendrier.
+- tapOn:
+    id: "input-birth-date"
+- tapOn: "Valider"
+
+- tapOn:
+    id: "input-email"
+- inputText: "${ORGANIZER_EMAIL}"
+# Maestro/XCTest ne saisit pas fiablement dans un champ secureTextEntry
+# actif — on bascule les deux champs en "mot de passe visible" AVANT de
+# taper quoi que ce soit (voir signup-participant.yaml).
+- tapOn:
+    id: "input-password-toggle-visibility"
+- tapOn:
+    id: "input-confirm-password-toggle-visibility"
+- tapOn:
+    id: "input-password"
+- inputText: "${ORGANIZER_PASSWORD}"
+- tapOn:
+    id: "input-confirm-password"
+- inputText: "${ORGANIZER_PASSWORD}"
+- tapOn: "Tes informations"  # ferme le clavier
+
+# "Participante" est le rôle par défaut : on doit explicitement sélectionner
+# "Organisatrice" ici.
+- tapOn:
+    id: "role-organizer"
+
+# --- Pièce d'identité ---
+- tapOn:
+    id: "link-dev-use-test-id"
+- assertVisible: "Pièce d'identité ajoutée ✓"
+- tapOn:
+    id: "button-continue-step1"
+
+# L'OCR peut renvoyer un avertissement si la date lue sur la pièce ne
+# correspond pas à la date de naissance saisie — même bouton, libellé
+# différent ("Continuer quand même"), pas de changement d'écran.
+- runFlow:
+    when:
+      visible: "Continuer quand même"
+    commands:
+      - tapOn:
+          id: "button-continue-step1"
+
+# --- Étape 2 : Tes spécialités ---
+- tapOn:
+    id: "age-bracket-18-25"
+- tapOn: "Bar"
+- tapOn:
+    id: "link-dev-bypass-faceid"
+- assertVisible: "Face ID activé ✓"
+
+- tapOn:
+    id: "button-create-account"
+- assertVisible: "Compte créé avec succès.*"
+
+# --- Connexion avec le compte organisatrice tout juste créé ---
+- runFlow:
+    file: login.yaml
+    env:
+      TEST_EMAIL: "${ORGANIZER_EMAIL}"
+      TEST_PASSWORD: "${ORGANIZER_PASSWORD}"
+
+# === Publication d'un post et d'un sondage dans son propre canal ===
+- tapOn: "Profil.*"
+- tapOn:
+    id: "button-view-own-channel"
+
+- tapOn:
+    id: "button-toggle-new-post"
+- tapOn:
+    id: "input-post-content"
+- inputText: "Soiree au Sistrs ce vendredi, qui est motivee ?"
+- hideKeyboard
+- tapOn:
+    id: "button-publish-post"
+- assertVisible: "Soiree au Sistrs ce vendredi, qui est motivee ?"
+
+- tapOn:
+    id: "button-toggle-new-poll"
+- tapOn:
+    id: "input-poll-question"
+- inputText: "On commence par quoi ?"
+- tapOn:
+    id: "input-poll-option-0"
+- inputText: "Un bar a cocktails"
+- tapOn:
+    id: "input-poll-option-1"
+- inputText: "Un karaoke"
+- hideKeyboard
+- tapOn:
+    id: "button-create-poll"
+- assertVisible: "On commence par quoi ?"
+- assertVisible: "Un bar a cocktails"
+- assertVisible: "Un karaoke"
+
+# --- Déconnexion de l'organisatrice ---
+# Toujours sur app/channel/[id].tsx (poussé depuis l'onglet Profil) : la
+# barre d'onglets reste accessible, retaper sur "Profil" ramène à l'écran
+# racine de cet onglet (comme dans les autres flows qui quittent un écran
+# empilé, ex. event-create-and-register.yaml après la création
+# d'événement).
+- tapOn: "Profil.*"
+- tapOn:
+    id: "button-sign-out"
+# Alert.alert natif à deux boutons ("Annuler" / "Se déconnecter").
+- tapOn: "Se déconnecter"
+- assertVisible: "S'inscrire"
+
+# === Compte participante : "Lea Petit" ===
+- tapOn: "S'inscrire"
+
+- tapOn:
+    id: "input-first-name"
+- inputText: "Lea"
+- tapOn:
+    id: "input-last-name"
+- inputText: "Petit"
+- tapOn: "Tes informations"
+
+- tapOn:
+    id: "input-birth-date"
+- tapOn: "Valider"
+
+- tapOn:
+    id: "input-email"
+- inputText: "${PARTICIPANT_EMAIL}"
+- tapOn:
+    id: "input-password-toggle-visibility"
+- tapOn:
+    id: "input-confirm-password-toggle-visibility"
+- tapOn:
+    id: "input-password"
+- inputText: "${PARTICIPANT_PASSWORD}"
+- tapOn:
+    id: "input-confirm-password"
+- inputText: "${PARTICIPANT_PASSWORD}"
+- tapOn: "Tes informations"
+
+# "Participante" est déjà le rôle par défaut, on le confirme explicitement.
+- tapOn:
+    id: "role-participant"
+
+- tapOn:
+    id: "link-dev-use-test-id"
+- assertVisible: "Pièce d'identité ajoutée ✓"
+- tapOn:
+    id: "button-continue-step1"
+- runFlow:
+    when:
+      visible: "Continuer quand même"
+    commands:
+      - tapOn:
+          id: "button-continue-step1"
+
+- tapOn:
+    id: "age-bracket-18-25"
+- tapOn: "Bar"
+- tapOn:
+    id: "link-dev-bypass-faceid"
+- assertVisible: "Face ID activé ✓"
+
+- tapOn:
+    id: "button-create-account"
+- assertVisible: "Compte créé avec succès.*"
+
+# --- Connexion avec le compte participante tout juste créé ---
+- runFlow:
+    file: login.yaml
+    env:
+      TEST_EMAIL: "${PARTICIPANT_EMAIL}"
+      TEST_PASSWORD: "${PARTICIPANT_PASSWORD}"
+
+# === Envoi de la demande d'amitié à l'organisatrice ===
+# Recherche par le nom de famille seul (voir friend-request-flow.yaml :
+# app/(tabs)/friends.tsx filtre sur first_name/last_name séparément, un
+# nom complet ne matcherait aucun des deux).
+- tapOn: "Amies.*"
+- tapOn:
+    id: "tab-find"
+- tapOn:
+    id: "input-friend-search"
+- inputText: "Moreau"
+- assertVisible: "Camille Moreau"
+- tapOn:
+    id: "button-send-friend-request"
+- assertVisible: "Demande envoyée"
+
+# --- Déconnexion de la participante ---
+- tapOn: "Profil.*"
+- tapOn:
+    id: "button-sign-out"
+- tapOn: "Se déconnecter"
+- assertVisible: "S'inscrire"
+
+# === Reconnexion de l'organisatrice : acceptation de la demande ===
+- runFlow:
+    file: login.yaml
+    env:
+      TEST_EMAIL: "${ORGANIZER_EMAIL}"
+      TEST_PASSWORD: "${ORGANIZER_PASSWORD}"
+
+# L'onglet "Demandes" est déjà celui affiché par défaut à l'arrivée sur
+# "Amies" (activeTab initial = "requests" dans friends.tsx).
+- tapOn: "Amies.*"
+- assertVisible: "Lea Petit"
+- assertVisible: "Veut devenir ton amie"
+- tapOn:
+    id: "button-accept-friend-request"
+
+- tapOn: "Profil.*"
+- tapOn:
+    id: "button-sign-out"
+- tapOn: "Se déconnecter"
+- assertVisible: "S'inscrire"
+
+# === Reconnexion de la participante : découverte du canal et vote ===
+- runFlow:
+    file: login.yaml
+    env:
+      TEST_EMAIL: "${PARTICIPANT_EMAIL}"
+      TEST_PASSWORD: "${PARTICIPANT_PASSWORD}"
+
+# "Mes amies" navigue vers le profil de l'amie au tap sur sa ligne (voir
+# app/(tabs)/friends.tsx) — c'est le seul chemin UI, en dehors des
+# notifications, pour atteindre le canal d'une autre organisatrice sans y
+# être déjà abonnée.
+- tapOn: "Amies.*"
+- tapOn:
+    id: "tab-friends"
+- tapOn: "Camille Moreau"
+
+- tapOn:
+    id: "button-view-channel"
+
+- assertVisible: "Soiree au Sistrs ce vendredi, qui est motivee ?"
+- assertVisible: "On commence par quoi ?"
+- tapOn: "Un karaoke"
+- assertVisible: "1 vote"

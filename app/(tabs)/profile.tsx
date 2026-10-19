@@ -60,6 +60,14 @@ export default function ProfileScreen() {
   const [isSavingCategories, setIsSavingCategories] = useState(false);
   const MAX_PARTICIPANT_CATEGORIES = 5;
 
+  // Canal de l'organisatrice : seul point d'entrée de l'UI vers son propre
+  // canal (voir CLAUDE.md/PROGRESS.md — une organisatrice n'est pas
+  // auto-abonnée à son propre canal, donc il n'apparaît pas dans l'onglet
+  // Canaux, et elle ne peut pas non plus atteindre `app/profile/[id].tsx`
+  // pour elle-même). Sans ce bouton, aucune organisatrice ne pouvait
+  // publier de post/sondage depuis l'app.
+  const [ownChannelId, setOwnChannelId] = useState<string | null>(null);
+
   useEffect(() => {
     setFirstName(profile?.first_name ?? "");
     setLastName(profile?.last_name ?? "");
@@ -101,6 +109,19 @@ export default function ProfileScreen() {
     loadUnreadCount();
     loadCategories();
   }, [loadUnreadCount, loadCategories]);
+
+  useEffect(() => {
+    if (!profile?.id || profile.role !== "organizer") {
+      setOwnChannelId(null);
+      return;
+    }
+    supabase
+      .from("channels")
+      .select("id")
+      .eq("organizer_id", profile.id)
+      .maybeSingle()
+      .then(({ data }) => setOwnChannelId(data?.id ?? null));
+  }, [profile?.id, profile?.role]);
 
   useEffect(() => {
     let isMounted = true;
@@ -417,6 +438,16 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {profile.role === "organizer" && ownChannelId ? (
+          <PrimaryButton
+            testID="button-view-own-channel"
+            label="Voir mon canal"
+            variant="outline"
+            onPress={() => router.push(`/channel/${ownChannelId}`)}
+            style={styles.viewChannelButton}
+          />
+        ) : null}
+
         <PrimaryButton
           testID="button-sign-out"
           label="Se déconnecter"
@@ -599,6 +630,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textMuted,
     marginBottom: 10,
+  },
+  viewChannelButton: {
+    marginTop: 4,
+    marginBottom: 12,
   },
   signOutButton: {
     marginTop: 4,
