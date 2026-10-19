@@ -58,6 +58,19 @@ ajouté — item 7 du backlog —, workflow du pipeline passé en commit direct 
   correspondent à l'ancien workflow ; les anciennes PR encore ouvertes (s'il
   en reste) sont volontairement laissées de côté, à traiter manuellement par
   l'utilisateur s'il le souhaite.
+- **Nouvelle limite trouvée sur l'auto-enchaînement (`fire_trigger`)** :
+  contrairement aux runs précédents où l'échec était `bound_device_absent`
+  (Mac non lié), ce run obtient un refus différent — **le classificateur de
+  sécurité "auto mode" de la plateforme bloque explicitement l'action
+  "Cowork Run Routine Now"** (message : permission refusée par le
+  classificateur, action non contournable depuis la session). Donc même
+  quand le blocage `bound_device_absent` ne s'applique pas, l'auto-
+  enchaînement immédiat via `fire_trigger` reste indisponible pour cette
+  tâche planifiée dans ce mode d'exécution — ce n'est pas un bug côté code
+  du projet, rien à corriger ici. Le filet de sécurité (cron horaire déjà
+  configuré sur cette tâche) reste donc le seul mécanisme de reprise tant
+  que ce point n'est pas réglé par l'utilisateur côté réglages de la tâche
+  planifiée (si un réglage permettant l'auto-enchaînement existe).
 
 ## Fait (session pipeline — flow event-review + découverte architecture Mac)
 
