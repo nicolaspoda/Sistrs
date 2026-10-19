@@ -6,53 +6,81 @@
 > compte/session Claude Code.
 
 Dernière mise à jour : 2026-10-19 (session : flow Maestro event-review
-finalisé — item 6 du backlog — après une collision avec un run concurrent
-sur exactement la même tâche, voir le point "Problème structurel" plus
-bas, important pour la suite du pipeline)
+ajouté, nécessite un ajout au seed de test pour un événement déjà terminé —
+aucun événement de l'app n'est jamais dans le passé autrement)
 
-## Fait (session pipeline autonome — flow event-review, finalisation)
+## Fait (session pipeline autonome — flow event-review)
 
-- **Collision avec un run concurrent sur le même item de backlog** : cette
-  session a commencé à écrire `.maestro/event-review.yaml` (item 6) via une
-  approche différente (appel direct à l'API Supabase pour faire passer un
-  événement fraîchement créé dans le passé, authentifié avec les
-  identifiants de l'organisatrice — contourne la contrainte
-  `minimumDate={new Date()}` du formulaire de création). En voulant pousser
-  la branche `feat/maestro-event-review-flow`, elle existait déjà côté
-  GitHub : un **autre run de cette même tâche planifiée, exécuté en
-  parallèle**, avait déjà écrit et poussé une implémentation différente et
-  plus idiomatique du même item (réutilise le compte de test seedé par
-  `supabase/dev-seed-test-participant.sql`, comme `login.yaml`/
-  `smoke_navigation.yaml`, plutôt que d'appeler l'API en direct pendant le
-  flow). Plutôt que de dupliquer (comme la PR #6, fermée plus tôt pour la
-  même raison), cette session a **abandonné sa propre implémentation** et
-  terminé celle déjà poussée à sa place : corrigé le bit exécutable perdu
-  sur `scripts/run-maestro-suite.sh`, et ouvert
-  [PR #8](https://github.com/nicolaspoda/Sistrs/pull/8) (pas encore
-  mergée). **Item 6 est donc fait, voir PR #8** — ne pas le redupliquer.
-- **Problème structurel à régler côté réglages de la tâche planifiée** :
-  c'est la **deuxième fois** que deux runs de cette tâche travaillent en
-  parallèle sur le même item de backlog sans le savoir (la première fois a
-  donné la PR #6, fermée comme doublon). Plusieurs runs ont aussi été
-  observés en train de fusionner des PR en plein milieu de l'exécution
-  d'un autre run (PR #5 et #7 mergées alors que cette session travaillait
-  encore sur `main`, nécessitant un rebase). Cela suggère que la tâche
-  planifiée se déclenche plus souvent/plus en parallèle que prévu (horaire
-  + auto-enchaînement `fire_trigger` combinés ?). **Suggestion** : vérifier
-  la fréquence réelle du déclenchement horaire et envisager soit un
-  verrou (un seul run actif à la fois), soit de ne reprendre le backlog
-  qu'après avoir vérifié l'état GitHub le plus frais possible juste avant
-  de choisir une tâche (déjà fait ici, mais la fenêtre entre vérification
-  et push reste une course possible). Pas d'action automatique prise
-  au-delà de cette note — décision d'outillage qui dépasse le cadre d'un
-  run.
-- **Mac joignable mais aucun dossier connecté à cette session** (même
-  constat que tous les runs précédents) : branche B (test E2E réel) non
-  tentée pour cette raison.
-- **Pas de ré-enchaînement (`fire_trigger`) ce run**, volontairement : vu
-  la collision ci-dessus, ajouter un troisième run concurrent aggraverait
-  le problème plutôt que de le résoudre. Le cron horaire reprendra la
-  suite (item 7, `notifications.yaml`) à son prochain passage normal.
+- **`.maestro/event-review.yaml` écrit** (item 6 du backlog "Flows Maestro
+  manquants" ci-dessous — les items 1 à 5 sont déjà mergés dans `main`,
+  voir plus bas). Dépose un avis (note 4/5 + commentaire) sur un
+  événement déjà terminé, en se connectant avec le compte de test seedé
+  (`test.participante@sistrs.app`, comme `login.yaml`/
+  `smoke_navigation.yaml`) — le seul compte dont ce flow a besoin,
+  contrairement aux autres flows qui créent leurs propres comptes à la
+  volée.
+- **Pourquoi ce flow ne peut pas créer son propre événement comme les
+  autres** : `canReview` dans `app/event/[id].tsx` exige
+  `isPastEvent && isRegistered` (`isPastEvent` = `now() >= end_at ?? start_at`).
+  Or `event/create.tsx` ne propose que des dates par défaut dans le futur
+  (voir le bug de dates corrigé dans une session précédente), et les
+  événements de démo dans `supabase/seed.sql` sont *volontairement*
+  toujours "à venir" (`now() + interval '...'`, voir son commentaire) pour
+  rester valides après n'importe quel `db reset` — aucun événement de
+  l'app n'est donc jamais dans le passé. **Ajout** à
+  `supabase/dev-seed-test-participant.sql` (section "6b") : un événement
+  déjà terminé (id fixe `e0000000-0000-0000-0000-000000000099`,
+  `start_at`/`end_at` dans le passé) avec une inscription `confirmed` du
+  compte de test, pour que `canReview` devienne vrai. **À relancer à la
+  main sur l'instance Supabase locale** (comme ce script l'a toujours
+  été) avant que `event-review.yaml` puisse réellement passer sur le
+  Mac — rien d'automatique ici, le script reste "à lancer à la main".
+- **Atteindre précisément cet événement depuis l'UI est ambigu par la
+  navigation normale** : le fil d'accueil ne liste QUE les événements à
+  venir (`app/(tabs)/index.tsx` filtre `start_at >= now()`), et la
+  notification "Inscription confirmée" générée par le seed n'est pas
+  distinguable par son texte des autres notifications du même type
+  (`app/notifications.tsx` : `labelForNotification` ne montre pas le
+  titre de l'événement, donc deux inscriptions confirmées rendent le même
+  texte). **Choix** : ouvrir l'écran événement directement par deep link
+  (`openLink: "sistrs://event/<id>"`, schéma déjà défini dans `app.json`,
+  résolu par Expo Router) plutôt que de tenter un tap ambigu sur une
+  notification — premier flow de cette suite à utiliser cette technique,
+  documenté en tête du fichier `.yaml`.
+- **TestID ajoutés** (aucun n'existait avant sur le formulaire d'avis) :
+  `app/event/[id].tsx` (`button-rating-star-{1..5}`,
+  `input-review-comment`, `button-submit-review`).
+  Validation faite ici : le fichier YAML parse comme deux documents
+  valides (`pyyaml`), `bash -n` passe sur le script, et le script a été
+  dry-runné avec un faux binaire `maestro` (avec `TEST_PASSWORD` fourni,
+  pour vérifier que `event-review.yaml` est bien déclenché dans cette
+  branche conditionnelle) pour vérifier le câblage — **pas d'exécution
+  réelle sur Simulator ni sur la base** (Mac non connecté à ce run, voir
+  plus bas ; le nouveau SQL n'a pas pu être exécuté contre une vraie
+  instance Postgres depuis ce sandbox, relecture manuelle seulement).
+  `tsc --noEmit` sur `app/event/[id].tsx` ne remonte que des erreurs déjà
+  connues de ce sandbox — aucune sur les nouvelles props `testID`.
+- **Deux PR du backlog Maestro mergées entre le début et la fin de ce
+  run** : [PR #5](https://github.com/nicolaspoda/Sistrs/pull/5)
+  (`messaging-send.yaml`, item 4) et [PR
+  #7](https://github.com/nicolaspoda/Sistrs/pull/7)
+  (`channel-post-and-poll.yaml`, item 5) — toutes deux mergées très vite
+  par l'utilisateur pendant que ce run travaillait. Au moment où ce run a
+  commencé (branche A, décision "item 5 non traité"), un autre run du
+  pipeline avait déjà ouvert une PR quasi identique pour
+  `channel-post-and-poll.yaml` (même bug trouvé, même correctif "Voir mon
+  canal") — détecté avant de pousser, branche locale abandonnée sans
+  ouvrir de PR en double, et ce run a basculé sur l'item 6 à la place. À
+  garder en tête : plusieurs exécutions de cette tâche planifiée peuvent
+  tourner en parallèle sur un clone `main` différent et traiter le même
+  item — pas réglé ici (hors de portée d'un seul run), juste reconfirmé.
+- **Mac joignable mais toujours aucun dossier connecté à cette session**
+  (même constat que tous les runs précédents) : `get_device_info` répond
+  (Mac allumé/déverrouillé, app Claude desktop ouverte), mais
+  `connectedFolders` est vide. Branche B (test E2E réel) non tentée pour
+  cette raison — le marqueur "Dernier run E2E vert" reste inchangé.
+  **Toujours pas réglé côté utilisateur** malgré la suggestion répétée à
+  chaque run précédent.
 
 ## Fait (session pipeline autonome — flow channel-post-and-poll)
 
@@ -163,14 +191,14 @@ bas, important pour la suite du pipeline)
   suggérée** (répétée des runs précédents, toujours pas réglée) :
   connecter le dossier du projet à la tâche planifiée pour que les
   prochains runs puissent réellement piloter le Simulator.
-- **Auto-enchaînement (`fire_trigger`) volontairement pas retenté ce
+- **Auto-enchâînement (`fire_trigger`) volontairement pas retenté ce
   run** : le run précédent (flow `friend-request-flow.yaml`, voir PR
   encore ouverte) avait déjà buté sur exactement ce même blocage
   (`bound_device_absent`, Mac non lié côté tâche planifiée) en tentant de
   s'auto-redéclencher dans une situation identique (Mac joignable mais
   pas de dossier connecté). Conformément à la consigne "ne pas
   redéclencher si le run précédent a buté sur exactement le même
-  blocage", ce run ne retente pas l'auto-enchaînement — le cron horaire
+  blocage", ce run ne retente pas l'auto-enchâînement — le cron horaire
   reprendra la suite (item 5, `channel-post-and-poll.yaml`) à son
   prochain passage.
 
@@ -218,7 +246,7 @@ bas, important pour la suite du pipeline)
   des runs précédents, toujours pas réglée) : connecter le dossier du
   projet à la tâche planifiée pour que les prochains runs puissent
   réellement piloter le Simulator.
-- **`fire_trigger` (auto-enchaînement) échoue quand le Mac n'est pas
+- **`fire_trigger` (auto-enchâînement) échoue quand le Mac n'est pas
   connecté** : en fin de ce run, comme il restait du travail non bloqué
   dans le backlog (item 4 `messaging-send.yaml`), l'auto-déclenchement
   prévu à l'étape 6 a été tenté mais a échoué avec
@@ -226,7 +254,7 @@ bas, important pour la suite du pipeline)
   connected"). La tâche planifiée semble donc exiger un device lié pour
   se redéclencher elle-même, même quand le run suivant n'a besoin que de
   la branche "dev" (jamais du Mac). Conséquence : sans Mac connecté,
-  l'auto-enchaînement ne fonctionne pas du tout, seul le cron horaire
+  l'auto-enchâînement ne fonctionne pas du tout, seul le cron horaire
   (s'il est bien actif) peut relancer un run — à vérifier/ajuster côté
   réglages de la tâche planifiée (désactiver l'exigence de device liée au
   déclenchement manuel, si possible) la prochaine fois que le Mac est
@@ -646,9 +674,13 @@ lancer localement à la fin de cette section.
      trouver et corriger un vrai bug bloquant (aucun point d'entrée UI
      vers le canal d'une organisatrice). Mergé via PR #7.
   6. ~~`event-review.yaml`~~ **fait le 2026-10-19** (voir section "Fait
-     (session pipeline autonome — flow event-review, finalisation)" plus
-     haut) — écrit et câblé dans le script, pas encore exécuté pour de
-     vrai sur Simulator. PR #8 ouverte, pas encore mergée.
+     (session pipeline autonome — flow event-review)" plus haut) — écrit
+     et câblé dans le script (derrière `TEST_PASSWORD`, comme login.yaml/
+     smoke_navigation.yaml), pas encore exécuté pour de vrai sur Simulator
+     (Mac non connecté à ce run). Dépend d'un ajout à
+     `supabase/dev-seed-test-participant.sql` (événement déjà terminé +
+     inscription confirmée) — à relancer à la main sur l'instance locale
+     avant la prochaine exécution réelle de ce flow.
   7. `notifications.yaml` — vérifie qu'une notification in-app apparaît
      après une des actions ci-dessus (demande d'amie, inscription
      confirmée...).
@@ -656,11 +688,10 @@ lancer localement à la fin de cette section.
      réel vers Storage.
   Chaque nouveau flow doit être ajouté à `scripts/run-maestro-suite.sh` et
   à la liste lue par la tâche planifiée.
-  **Note** : les items 1 à 3 sont mergés dans `main` (PR #2, #3, #4).
-  L'item 4 a une PR ouverte (#5), écrite mais pas encore mergée — la
-  coche "fait" sur cet item n'apparaîtra ici qu'une fois cette PR
-  mergée. Prochaine tâche non bloquée pour le pipeline : item 5
-  (`channel-post-and-poll.yaml`).
+  **Note** : les items 1 à 5 sont mergés dans `main` (PR #2, #3, #4, #5,
+  #7). L'item 6 (`event-review.yaml`) vient d'être écrit par ce run,
+  PR #8 ouverte. Prochaine tâche non bloquée pour le pipeline une
+  fois cette PR mergée : item 7 (`notifications.yaml`).
 - **Backlog "prêt pour le store"** (distinct des tests, à ne traiter
   qu'une fois la couverture E2E ci-dessus avancée) : politique de
   confidentialité (obligatoire — l'app traite genre + pièce d'identité),
