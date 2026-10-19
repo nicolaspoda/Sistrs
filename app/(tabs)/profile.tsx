@@ -516,6 +516,14 @@ export default function ProfileScreen() {
         ) : null}
 
         <PrimaryButton
+          testID="button-past-events"
+          label="Mes événements passés"
+          variant="outline"
+          onPress={() => router.push("/past-events")}
+          style={styles.pastEventsButton}
+        />
+
+        <PrimaryButton
           testID="button-sign-out"
           label="Se déconnecter"
           variant="outline"
@@ -709,6 +717,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   viewChannelButton: {
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  pastEventsButton: {
     marginTop: 4,
     marginBottom: 12,
   },
