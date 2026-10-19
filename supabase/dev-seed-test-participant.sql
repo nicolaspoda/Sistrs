@@ -34,6 +34,10 @@ declare
   v_conversation_id uuid;
   v_event_id uuid;
   v_friendship_id uuid;
+  v_past_event_id uuid := 'c0000000-0000-0000-0000-000000000099';
+  v_past_event_title text := 'Brunch de rentrée (test avis E2E)';
+  v_past_channel_id uuid;
+  v_past_category_id uuid;
 begin
   select id into v_me from auth.users where email = v_test_email;
   if v_me is null then
@@ -102,7 +106,46 @@ begin
     on conflict (event_id, participant_id) do nothing;
   end if;
 
-  -- 7) Notifications manuelles pour les types qui n'ont pas de trigger
+  -- 7) Événement déjà passé, avec ma participation confirmée, pour tester le
+  --    parcours "laisser un avis" (.maestro/event-review.yaml). Id et titre
+  --    fixes (idempotent, comme les comptes emma/chloe/manon ci-dessus) :
+  --    pas d'UI pour créer un événement dans le passé (minimumDate =
+  --    aujourd'hui sur le formulaire de création), donc seedé directement
+  --    ici. Organisé par le premier organisateur de démo (v_organizers[1]).
+  select id into v_past_channel_id from channels where organizer_id = v_organizers[1];
+  select id into v_past_category_id from categories limit 1;
+
+  if v_past_channel_id is not null and v_past_category_id is not null then
+    insert into events (
+      id, organizer_id, channel_id, category_id, title, description,
+      meeting_point, start_at, end_at, max_participants, registration_deadline, status
+    ) values (
+      v_past_event_id, v_organizers[1], v_past_channel_id, v_past_category_id, v_past_event_title,
+      'Événement de test, déjà terminé, pour valider le parcours avis via e2e.',
+      'Café de test', now() - interval '3 days', now() - interval '3 days' + interval '2 hours',
+      10, now() - interval '4 days', 'published'
+    )
+    on conflict (id) do nothing;
+
+    insert into event_registrations (event_id, participant_id, status)
+    values (v_past_event_id, v_me, 'confirmed')
+    on conflict (event_id, participant_id) do nothing;
+
+    -- Notification de rappel dédiée à CET événement (distincte de celle de
+    -- l'étape 7 ci-dessous, qui pointe vers l'événement à venir) : c'est le
+    -- seul chemin UI actuel pour atteindre le détail d'un événement passé,
+    -- l'app n'a pas d'écran "mes événements passés" — voir PROGRESS.md.
+    insert into notifications (profile_id, type, payload)
+    select v_me, 'event_reminder', jsonb_build_object('event_id', v_past_event_id)
+    where not exists (
+      select 1 from notifications
+      where profile_id = v_me
+        and type = 'event_reminder'
+        and payload->>'event_id' = v_past_event_id::text
+    );
+  end if;
+
+  -- 8) Notifications manuelles pour les types qui n'ont pas de trigger
   --    automatique dans le code actuel (juste pour voir leur rendu dans
   --    l'écran Notifications).
   insert into notifications (profile_id, type, payload) values

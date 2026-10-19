@@ -104,7 +104,12 @@ export default function AccueilScreen() {
               <Ionicons name="add" size={20} color={Colors.white} />
             </TouchableOpacity>
           ) : null}
-          <TouchableOpacity style={styles.bellButton} onPress={() => router.push("/notifications")} activeOpacity={0.85}>
+          <TouchableOpacity
+            testID="button-notifications"
+            style={styles.bellButton}
+            onPress={() => router.push("/notifications")}
+            activeOpacity={0.85}
+          >
             <Ionicons name="notifications-outline" size={22} color={Colors.text} />
             {unreadCount > 0 ? (
               <View style={styles.badge}>

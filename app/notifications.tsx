@@ -193,8 +193,10 @@ export default function NotificationsScreen() {
         }
         renderItem={({ item }) => {
           const isUnread = !item.read_at;
+          const eventId = (item.payload?.event_id as string | undefined) ?? undefined;
           return (
             <TouchableOpacity
+              testID={eventId ? `notification-row-event-${eventId}` : `notification-row-${item.id}`}
               style={[styles.row, isUnread && styles.rowUnread]}
               onPress={() => handlePress(item)}
               activeOpacity={0.75}

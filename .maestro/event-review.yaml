@@ -1,0 +1,57 @@
+# Parcours "laisser un avis" sur un événement déjà passé (item 6 du backlog
+# Maestro). Contrairement aux autres flows (comptes générés à la volée), ce
+# flow s'appuie sur le compte de test participante déjà seedé (voir
+# supabase/dev-seed-test-participant.sql) : il n'existe aucune façon de
+# créer un événement PASSÉ via l'UI (minimumDate = aujourd'hui sur le
+# formulaire de création, app/event/create.tsx), donc un événement déjà
+# terminé avec une inscription confirmée pour ce compte est seedé
+# directement en base (id fixe c0000000-0000-0000-0000-000000000099,
+# étape 7 du script de seed).
+#
+# Constat produit au passage (voir PROGRESS.md) : l'app n'a aucun écran
+# listant "mes événements passés" — le seul chemin pour retomber sur le
+# détail d'un événement terminé est de taper sur une notification de type
+# "event_reminder"/"event_update" qui le référence. Le seed ajoute donc une
+# notification dédiée à cet effet (distincte de celle, déjà existante,
+# pointant vers l'événement à venir de l'étape 6).
+#
+#   maestro test --env TEST_EMAIL=test.participante@sistrs.app \
+#     --env TEST_PASSWORD=le-vrai-mot-de-passe .maestro/event-review.yaml
+appId: com.nicolaspoda.sistrs
+---
+- runFlow: login.yaml
+- assertVisible: "Communauté vérifiée.*"
+
+# Accueil -> cloche de notifications -> notification dédiée à l'événement
+# passé seedé (testID calculé à partir de payload.event_id, voir
+# app/notifications.tsx).
+- tapOn:
+    id: "button-notifications"
+- assertVisible: "Notifications"
+- tapOn:
+    id: "notification-row-event-c0000000-0000-0000-0000-000000000099"
+
+# Détail de l'événement passé : titre visible, section Avis avec le
+# formulaire (canReview = isPastEvent && isRegistered, les deux vrais ici).
+- assertVisible: "Brunch de rentrée \\(test avis E2E\\)"
+- assertVisible: "Avis"
+
+# Note 5 étoiles + commentaire, puis envoi. Idempotent : handleSubmitReview
+# fait un upsert sur (event_id, participant_id), donc rejouer ce flow sur
+# le même compte seedé met juste à jour le même avis plutôt que d'en créer
+# un second.
+- tapOn:
+    id: "button-rate-star-5"
+- tapOn:
+    id: "input-review-comment"
+- inputText: "Super brunch, merci pour l'organisation !"
+- hideKeyboard
+- tapOn:
+    id: "button-submit-review"
+
+# Vérifie que l'avis est bien pris en compte : moyenne à jour et commentaire
+# affiché dans la liste des avis (le label exact inclut des emojis étoile
+# générés dynamiquement, donc on matche juste la partie numérique plutôt
+# que le texte complet).
+- assertVisible: ".*5\\.0/5.*"
+- assertVisible: "Super brunch, merci pour l'organisation !"

@@ -5,10 +5,89 @@
 > entier avant de reprendre le travail, surtout après un changement de
 > compte/session Claude Code.
 
-Dernière mise à jour : 2026-10-19 (session : flows Maestro messaging-send et
-channel-post-and-poll ajoutés, bug bloquant trouvé et corrigé — aucun point
-d'entrée UI vers le canal d'une organisatrice —, nettoyage d'une PR
-dupliquée ouverte par un run précédent/concurrent)
+Dernière mise à jour : 2026-10-19 (session : flow Maestro event-review ajouté
+— item 6 du backlog —, découverte d'une limite d'architecture importante sur
+le pont Mac — voir "Pipeline dev → test E2E" plus bas —, et d'un vrai manque
+produit — aucun écran "mes événements passés")
+
+## Fait (session pipeline — flow event-review + découverte architecture Mac)
+
+- **`.maestro/event-review.yaml` écrit** (item 6 du backlog "Flows Maestro
+  manquants" ci-dessous) : contrairement aux flows précédents (comptes
+  générés à la volée), ce flow s'appuie sur le compte de test participante
+  déjà seedé (`supabase/dev-seed-test-participant.sql`), car **il n'existe
+  aucune façon de créer un événement déjà passé via l'UI**
+  (`minimumDate: new Date()` sur le formulaire de création,
+  `app/event/create.tsx`). Le seed insère donc directement un événement
+  terminé (id fixe `c0000000-0000-0000-0000-000000000099`, organisé par le
+  premier organisateur de démo) avec une inscription confirmée pour le
+  compte de test, ainsi qu'une notification `event_reminder` dédiée. Le
+  flow se connecte (`runFlow: login.yaml`), ouvre les notifications, tape
+  sur cette notification, vérifie que le détail de l'événement + la section
+  Avis s'affichent, note 5 étoiles + commentaire, envoie, et vérifie que la
+  moyenne/le commentaire apparaissent. Idempotent (upsert côté
+  `handleSubmitReview`). Ajouté à `scripts/run-maestro-suite.sh`, dans le
+  groupe gated par `TEST_PASSWORD` (comme `login.yaml`/`smoke_navigation.yaml`,
+  puisqu'il dépend du compte seedé).
+  **Vrai manque produit trouvé en écrivant ce flow** : l'app n'a **aucun
+  écran listant les événements passés d'une participante** — le seul moyen
+  de retomber sur le détail d'un événement terminé pour le noter est de
+  taper sur une notification qui le référence (`event_reminder`/
+  `event_update`). Si cette notification n'existe plus (supprimée, jamais
+  générée, ou l'utilisatrice n'a pas vu l'événement passer), **il n'y a
+  aujourd'hui aucun moyen dans l'UI de laisser un avis a posteriori.** Pas
+  corrigé dans cette session (ajouter un onglet/section "Mes événements"
+  avec historique est une vraie feature, pas un correctif ponctuel) —
+  suggestion ajoutée au backlog "En cours / à faire ensuite" ci-dessous.
+  TestID ajoutés : `app/(tabs)/index.tsx` et `app/(tabs)/profile.tsx`
+  (`button-notifications` sur la cloche), `app/notifications.tsx`
+  (`notification-row-event-{eventId}` par ligne, calculé depuis
+  `payload.event_id`), `app/event/[id].tsx` (`button-rate-star-{1..5}`,
+  `input-review-comment`, `button-submit-review`).
+  Validation faite ici : le YAML parse comme deux documents valides
+  (`pyyaml`), `bash -n` passe sur le script, et le script a été dry-runné
+  avec un faux binaire `maestro` — avec et sans `TEST_PASSWORD` — pour
+  vérifier le câblage. `tsc --noEmit` n'a pas pu tourner (voir plus bas,
+  limitation déjà documentée, `npm install` a aussi été retenté cette
+  session et bloqué par le réseau du sandbox cloud — `ENOTFOUND
+  registry.npmjs.org`).
+- **Découverte importante — le pont Mac (`device_bash`) tourne dans une VM
+  Linux isolée, pas directement sur macOS** : pour la première fois, un
+  dossier était bien connecté à cette session (`connectedFolders` non vide
+  — contrairement à tous les runs précédents qui butaient sur ce point).
+  Mais une fois dedans, `xcrun`, `xcode-select`, `mdfind` et `maestro` sont
+  tous introuvables, `/Applications` est vide côté `device_bash`, et le
+  réseau sortant de cette session device est bloqué par un proxy même vers
+  des hôtes normalement accessibles (`curl` vers `github.com`,
+  `api.github.com`, `registry.npmjs.org` → 403 du proxy). Conclusion : même
+  dossier connecté, **`device_bash` ne peut pas piloter Xcode
+  Simulator/Maestro CLI** — ce n'est pas (seulement) une histoire de
+  dossier non connecté comme supposé dans toutes les notes précédentes,
+  c'est une limite d'architecture plus profonde (sandbox Linux séparé du
+  vrai système macOS).
+  **Contournement utilisé pour quand même avancer** : comme `git fetch`
+  réseau était aussi bloqué depuis cette session device, le dossier Mac a
+  été mis à jour avec les 5 derniers flows mergés (`69c96c0` → `0ac537a`)
+  en transférant un `git bundle` depuis le sandbox cloud via
+  `device_commit_files` puis `git fetch <bundle> && git merge --ff-only`
+  en local sur le Mac (aucune opération réseau nécessaire côté Mac). A
+  aussi fallu `device_request_delete_permission` sur le dossier pour que
+  `git merge`/les fichiers de verrou `.git/*.lock` fonctionnent (suppression
+  désactivée par défaut dans un dossier connecté). Des copies locales
+  non trackées des 5 fichiers `.maestro/*.yaml` existaient déjà dans le
+  dossier (probablement un essai manuel antérieur) — vérifiées identiques
+  aux versions mergées avant d'être écrasées, rien perdu.
+  **Décision à prendre par l'utilisateur** (ajoutée aux "Décisions en
+  attente" ci-dessous) : soit accepter que la branche E2E réelle du
+  pipeline (branche B) reste bloquée tant que `device_bash` n'a pas un vrai
+  accès macOS, soit envisager l'alternative via les outils de contrôle
+  d'écran natif (`computer_*`, capture d'écran + clics/clavier réels sur le
+  Mac) pour ouvrir Terminal.app et taper les commandes à la main — solution
+  possible en théorie mais **pas tentée cette session sans accord explicite**
+  (ça impliquerait que le pipeline prenne visuellement le contrôle de
+  l'écran/souris/clavier du Mac à chaque run, ce qui est un changement
+  d'UX non anodin si l'utilisateur est en train d'utiliser sa machine à ce
+  moment-là).
 
 ## Fait (session pipeline autonome — flow channel-post-and-poll)
 

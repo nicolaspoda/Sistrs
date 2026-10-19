@@ -131,10 +131,13 @@ if [ -n "${TEST_PASSWORD:-}" ]; then
   run_flow "smoke_navigation.yaml" \
     --env TEST_EMAIL="test.participante@sistrs.app" \
     --env TEST_PASSWORD="$TEST_PASSWORD"
+  run_flow "event-review.yaml" \
+    --env TEST_EMAIL="test.participante@sistrs.app" \
+    --env TEST_PASSWORD="$TEST_PASSWORD"
 else
   {
     echo ""
-    echo "⏭️  login.yaml et smoke_navigation.yaml sautés (TEST_PASSWORD non fourni)"
+    echo "⏭️  login.yaml, smoke_navigation.yaml et event-review.yaml sautés (TEST_PASSWORD non fourni)"
   } | tee -a "$REPORT_FILE"
 fi
 
