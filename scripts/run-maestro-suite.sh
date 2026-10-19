@@ -8,7 +8,8 @@
 # Optionnel : TEST_PASSWORD=le-mot-de-passe-du-seed ./scripts/run-maestro-suite.sh
 #   (mot de passe du compte de test.participante@sistrs.app, voir
 #   supabase/dev-seed-test-participant.sql — sans ça, login.yaml et
-#   smoke_navigation.yaml sont sautés ; signup-participant.yaml et
+#   smoke_navigation.yaml sont sautés ; signup-participant.yaml,
+#   signup-organizer.yaml, event-create-and-register.yaml et
 #   friend-request-flow.yaml tournent dans tous les cas, chacun avec ses
 #   propres comptes générés à la volée)
 set -uo pipefail
@@ -21,6 +22,18 @@ mkdir -p "$REPORT_DIR"
 
 SIGNUP_EMAIL="test.e2e.$(date +%s)@example.com"
 SIGNUP_PASSWORD="motdepasse123"
+SIGNUP_ORGANIZER_EMAIL="test.e2e.organizer.$(date +%s)@example.com"
+SIGNUP_ORGANIZER_PASSWORD="motdepasse123"
+
+# Identifiants dédiés à event-create-and-register.yaml (deux comptes,
+# organisatrice + participante) — un suffixe "org"/"part" pour rester
+# unique même si ce script tourne deux fois dans la même seconde que les
+# variables ci-dessus.
+EVENT_ORGANIZER_EMAIL="test.e2e.org.$(date +%s)@example.com"
+EVENT_ORGANIZER_PASSWORD="motdepasse123"
+EVENT_PARTICIPANT_EMAIL="test.e2e.part.$(date +%s)@example.com"
+EVENT_PARTICIPANT_PASSWORD="motdepasse123"
+EVENT_TITLE="Soiree karaoke E2E $(date +%s)"
 
 # Identifiants dédiés à friend-request-flow.yaml (deux comptes, future
 # amie + demandeuse) — un suffixe "friend"/"requester" pour rester unique
@@ -34,6 +47,7 @@ FRIEND_REQUEST_REQUESTER_PASSWORD="motdepasse123"
 {
   echo "=== Run Maestro $TIMESTAMP ==="
   echo "Email généré pour signup-participant : $SIGNUP_EMAIL"
+  echo "Email généré pour signup-organizer : $SIGNUP_ORGANIZER_EMAIL"
   echo ""
 } | tee "$REPORT_FILE"
 
@@ -58,6 +72,17 @@ run_flow() {
 run_flow "signup-participant.yaml" \
   --env SIGNUP_EMAIL="$SIGNUP_EMAIL" \
   --env SIGNUP_PASSWORD="$SIGNUP_PASSWORD"
+
+run_flow "signup-organizer.yaml" \
+  --env SIGNUP_EMAIL="$SIGNUP_ORGANIZER_EMAIL" \
+  --env SIGNUP_PASSWORD="$SIGNUP_ORGANIZER_PASSWORD"
+
+run_flow "event-create-and-register.yaml" \
+  --env ORGANIZER_EMAIL="$EVENT_ORGANIZER_EMAIL" \
+  --env ORGANIZER_PASSWORD="$EVENT_ORGANIZER_PASSWORD" \
+  --env PARTICIPANT_EMAIL="$EVENT_PARTICIPANT_EMAIL" \
+  --env PARTICIPANT_PASSWORD="$EVENT_PARTICIPANT_PASSWORD" \
+  --env EVENT_TITLE="$EVENT_TITLE"
 
 run_flow "friend-request-flow.yaml" \
   --env FRIEND_EMAIL="$FRIEND_REQUEST_FRIEND_EMAIL" \

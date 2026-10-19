@@ -20,18 +20,27 @@ function parseIsoDateTime(iso: string): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-/** Demain à 19h : valeur pré-sélectionnée à l'ouverture du calendrier de début. */
+// Bug corrigé le 2026-10-19 (voir PROGRESS.md) : les deux valeurs par
+// défaut étaient inversées (début = demain, date limite = après-demain),
+// ce qui plaçait systématiquement la date limite APRÈS le début au lieu
+// d'au moins 24h avant — la validation de `handleSubmit` ("La date limite
+// d'inscription doit être au moins 24h avant le début.") échouait donc à
+// chaque création d'événement où les deux dates par défaut étaient
+// acceptées sans modification. Début = après-demain, date limite = demain,
+// pour respecter l'écart d'exactement 24h.
+
+/** Après-demain à 19h : valeur pré-sélectionnée à l'ouverture du calendrier de début. */
 function defaultStartDate(): Date {
   const date = new Date();
-  date.setDate(date.getDate() + 1);
+  date.setDate(date.getDate() + 2);
   date.setHours(19, 0, 0, 0);
   return date;
 }
 
-/** Après-demain à 19h : valeur pré-sélectionnée à l'ouverture du calendrier de date limite. */
+/** Demain à 19h : valeur pré-sélectionnée à l'ouverture du calendrier de date limite. */
 function defaultDeadlineDate(): Date {
   const date = new Date();
-  date.setDate(date.getDate() + 2);
+  date.setDate(date.getDate() + 1);
   date.setHours(19, 0, 0, 0);
   return date;
 }
@@ -191,6 +200,7 @@ export default function CreateEventScreen() {
 
       <Field label="Titre">
         <TextInput
+          testID="input-event-title"
           style={styles.input}
           value={title}
           onChangeText={setTitle}
@@ -201,6 +211,7 @@ export default function CreateEventScreen() {
 
       <Field label="Description">
         <TextInput
+          testID="input-event-description"
           style={[styles.input, styles.textArea]}
           value={description}
           onChangeText={setDescription}
@@ -237,6 +248,7 @@ export default function CreateEventScreen() {
 
       <Text style={styles.sectionLabel}>Date et heure de début</Text>
       <DatePickerField
+        testID="date-picker-event-start"
         label="Début de l'événement"
         value={startAtIso}
         onChange={setStartAtIso}
@@ -248,6 +260,7 @@ export default function CreateEventScreen() {
 
       <Field label="Lieu">
         <TextInput
+          testID="input-event-meeting-point"
           style={styles.input}
           value={meetingPoint}
           onChangeText={setMeetingPoint}
@@ -281,6 +294,7 @@ export default function CreateEventScreen() {
 
       <Field label="Nombre maximum de participantes">
         <TextInput
+          testID="input-event-max-participants"
           style={styles.input}
           value={maxParticipants}
           onChangeText={setMaxParticipants}
@@ -292,6 +306,7 @@ export default function CreateEventScreen() {
 
       <Text style={styles.sectionLabel}>Date limite d'inscription (≥ 24h avant le début)</Text>
       <DatePickerField
+        testID="date-picker-event-deadline"
         label="Date limite d'inscription"
         value={deadlineIso}
         onChange={setDeadlineIso}
@@ -304,6 +319,7 @@ export default function CreateEventScreen() {
       {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
 
       <PrimaryButton
+        testID="button-publish-event"
         label="Publier l'événement"
         onPress={handleSubmit}
         isLoading={isSubmitting}

@@ -5,8 +5,9 @@
 > entier avant de reprendre le travail, surtout après un changement de
 > compte/session Claude Code.
 
-Dernière mise à jour : 2026-10-19 (session : flow Maestro
-friend-request-flow ajouté)
+Dernière mise à jour : 2026-10-19 (session : flows Maestro signup-organizer,
+event-create-and-register et friend-request-flow ajoutés, bug des dates par
+défaut de création d'événement corrigé)
 
 ## Fait (session pipeline autonome — flow friend-request-flow)
 
@@ -65,6 +66,100 @@ friend-request-flow ajouté)
   réglages de la tâche planifiée (désactiver l'exigence de device liée au
   déclenchement manuel, si possible) la prochaine fois que le Mac est
   disponible.
+
+## Fait (session pipeline autonome — 2e run réel)
+
+- **`.maestro/event-create-and-register.yaml` écrit** (item 2 du backlog
+  "Flows Maestro manquants" ci-dessous, à la suite du run précédent qui a
+  traité l'item 1 — voir PR #2, toujours ouverte au moment d'écrire ceci,
+  pas encore mergée). Parcours complet : une organisatrice crée un compte,
+  crée un événement (titre/description/catégorie/lieu/dates par défaut/
+  2 places max), ajoute un article à sa liste de courses, se déconnecte ;
+  une participante crée un compte, découvre l'événement dans le fil et s'y
+  inscrit (pas de lien "bypass Face ID" nécessaire ici contrairement à
+  l'inscription — `handleRegister` dans `app/event/[id].tsx` continue déjà
+  tout seul si `authenticateAsync()` échoue hors production). Vérifie que
+  le compteur de places passe de "2 places restantes sur 2" à "1 place
+  restante sur 2" après l'inscription, et que l'article de liste de
+  courses apparaît bien. Ajouté à `scripts/run-maestro-suite.sh` (deux
+  comptes générés à la volée, indépendants des autres flows).
+  **Testé statiquement seulement** (comme le run précédent) : le fichier
+  YAML parse comme deux documents valides (`pyyaml`), et le script a été
+  dry-runné avec un faux binaire `maestro` pour vérifier le câblage
+  (variables d'env distinctes pour l'organisatrice et la participante) —
+  pas d'exécution réelle sur Simulator, voir le point suivant.
+- **Bug trouvé et corrigé en écrivant ce flow** : dans
+  `app/event/create.tsx`, `defaultStartDate()` (demain 19h) et
+  `defaultDeadlineDate()` (après-demain 19h) étaient inversées par rapport
+  à leur usage — la date limite d'inscription par défaut tombait donc
+  *après* le début de l'événement au lieu d'au moins 24h avant, ce qui
+  faisait échouer la validation côté client ("La date limite d'inscription
+  doit être au moins 24h avant le début.") à chaque création d'événement
+  où une organisatrice acceptait les deux dates pré-sélectionnées sans les
+  changer manuellement — ce qui est précisément ce que fait (et doit
+  pouvoir faire) un flow Maestro, qui ne pilote pas le calendrier natif
+  par coordonnées. Corrigé en échangeant les décalages de jours (début =
+  après-demain, date limite = demain), ce qui respecte l'écart d'exactement
+  24h exigé par la contrainte SQL `registration_deadline <= start_at - 24h`
+  (vérifié : la comparaison de `handleSubmit` utilise un `>` strict, donc
+  une égalité à 24h passe). **Bug réel, pas seulement un problème de test**
+  — à signaler/vérifier manuellement sur le Mac si l'utilisatrice avait
+  déjà rencontré cette erreur sans comprendre pourquoi.
+- **TestID ajoutés** (nécessaires pour que Maestro puisse cibler les
+  éléments de façon fiable, sur le même principe que les écrans
+  d'inscription) : `app/event/create.tsx` (`input-event-title`,
+  `input-event-description`, `date-picker-event-start`,
+  `input-event-meeting-point`, `input-event-max-participants`,
+  `date-picker-event-deadline`, `button-publish-event`),
+  `app/(tabs)/index.tsx` (`button-create-event` sur le bouton "+"),
+  `app/event/[id].tsx` (`button-register-event`,
+  `button-cancel-registration`, `input-add-shopping-item`,
+  `button-add-shopping-item`), `app/(tabs)/profile.tsx`
+  (`button-sign-out`). Aucun de ces écrans n'avait de testID avant cette
+  session — seuls les écrans d'authentification en avaient.
+- **Mac joignable mais toujours aucun dossier connecté à cette session**
+  (comme au run précédent) : `get_device_info` répond, mais
+  `connectedFolders` est vide. Branche B (test E2E réel sur Simulator)
+  donc non tentée à nouveau ce run, pour la même raison qu'au run
+  précédent — pas de changement côté utilisateur depuis. Le marqueur
+  "Dernier run E2E vert" reste donc inchangé.
+
+## Fait (session pipeline autonome — 1er run réel)
+
+- **Repo renommé `sistrs` → `Sistrs`** côté GitHub (`nicolaspoda/Sistrs`) ;
+  remote local du clone cloud mis à jour en conséquence.
+- **`.maestro/signup-organizer.yaml` écrit** (item 1 du backlog "Flows
+  Maestro manquants" ci-dessous) : inscription complète côté organisatrice
+  (rôle `organizer`, pièce d'identité via raccourci dev, étape "Tes
+  spécialités" sans limite à 5 contrairement aux préférences participante,
+  bypass Face ID dev), puis reconnexion avec le compte tout juste créé et
+  vérification que l'onglet Profil affiche "Spécialités" — confirme que le
+  rôle et les spécialités sont bien persistés côté serveur (ce même insert
+  de rôle déclenche aussi le trigger SQL `ensure_organizer_channel`, non
+  observable directement dans l'UI puisque l'organisatrice n'est pas
+  auto-abonnée à son propre canal — voir le commentaire en tête du fichier
+  pour le détail). Ajouté à `scripts/run-maestro-suite.sh` avec son propre
+  compte de test généré, indépendant de `signup-participant.yaml`.
+  Validation faite ici : les deux documents YAML de chaque flow (config +
+  liste de commandes) parsent correctement (`pyyaml`), et le script a été
+  testé en isolation avec un faux binaire `maestro` pour vérifier le
+  câblage (variables d'env, répartition des flows) — **le flow n'a en
+  revanche pas pu être exécuté sur un vrai Simulator** (voir point
+  suivant), donc il reste à valider pour de vrai au prochain run si le Mac
+  est disponible.
+- **Mac joignable mais aucun dossier connecté à cette session** :
+  `get_device_info` répond (Mac allumé/déverrouillé, app Claude desktop
+  ouverte), mais `connectedFolders` est vide — contrairement à ce qui
+  était attendu, le dossier du projet n'était pas déjà connecté à cette
+  session planifiée. Sans dossier connecté, `device_bash` ne peut pas
+  opérer dans le dossier du projet, donc aucune étape nécessitant le Mac
+  (Simulator, Metro, Maestro, identifiants de seed) n'a pu être tentée ce
+  run — branche B (test E2E) non exécutée pour cette raison, pas par choix
+  (le marqueur "Dernier run E2E vert" reste donc inchangé, voir plus bas).
+  **Action utilisateur suggérée** : connecter le dossier du projet à la
+  tâche planifiée (dans les réglages de la tâche planifiée côté app Claude
+  desktop) pour que les prochains runs puissent réellement piloter le
+  Simulator.
 
 ## Fait (session Supabase cloud + pipeline autonome)
 
@@ -360,19 +455,21 @@ lancer localement à la fin de cette section.
   l'app entière, pas seulement signup/login/smoke navigation déjà
   existants) — à traiter comme des tâches de dev normales, dans cet ordre
   de priorité suggéré :
-  1. ~~`signup-organizer.yaml`~~ **écrit, PR ouverte non encore mergée** :
-     [#2](https://github.com/nicolaspoda/Sistrs/pull/2). Pas encore marqué
-     "fait" ici tant que la PR n'est pas mergée dans `main` (sinon un futur
-     run lirait un `PROGRESS.md` à jour sans que le code ne le soit) —
-     vérifier l'état de la PR avant de retravailler ce point.
-  2. ~~`event-create-and-register.yaml`~~ **écrit, PR ouverte non encore
-     mergée** : [#3](https://github.com/nicolaspoda/Sistrs/pull/3). Même
-     remarque que ci-dessus.
+  1. ~~`signup-organizer.yaml`~~ **fait le 2026-10-19** (voir section
+     "Fait (session pipeline autonome — 1er run réel)" plus haut) — écrit
+     et câblé dans le script, pas encore exécuté pour de vrai sur
+     Simulator (Mac non connecté à ce run, voir plus haut). Mergé via PR #2.
+  2. ~~`event-create-and-register.yaml`~~ **fait le 2026-10-19** (voir
+     section "Fait (session pipeline autonome — 2e run réel)" plus haut) —
+     écrit et câblé dans le script, pas encore exécuté pour de vrai sur
+     Simulator (Mac non connecté à ce run non plus). A aussi permis de
+     trouver et corriger un vrai bug (dates par défaut de création
+     d'événement inversées, voir plus haut). Mergé via PR #3.
   3. ~~`friend-request-flow.yaml`~~ **fait le 2026-10-19** (voir section
      "Fait (session pipeline autonome — flow friend-request-flow)" plus
      haut) — écrit et câblé dans le script, pas encore exécuté pour de vrai
-     sur Simulator (Mac non connecté à ce run, voir plus haut). PR à
-     ouvrir dans la foulée de ce run.
+     sur Simulator (Mac non connecté à ce run, voir plus haut). Mergé via
+     PR #4.
   4. `messaging-send.yaml` — envoi réel d'un message dans une conversation
      (pas juste lecture du badge "non lu" seedé).
   5. `channel-post-and-poll.yaml` — organisatrice crée un post + un sondage
