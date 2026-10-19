@@ -9,9 +9,9 @@
 #   (mot de passe du compte de test.participante@sistrs.app, voir
 #   supabase/dev-seed-test-participant.sql — sans ça, login.yaml et
 #   smoke_navigation.yaml sont sautés ; signup-participant.yaml,
-#   signup-organizer.yaml, event-create-and-register.yaml et
-#   friend-request-flow.yaml tournent dans tous les cas, chacun avec ses
-#   propres comptes générés à la volée)
+#   signup-organizer.yaml, event-create-and-register.yaml,
+#   friend-request-flow.yaml et messaging-send.yaml tournent dans tous
+#   les cas, chacun avec ses propres comptes générés à la volée)
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -43,6 +43,17 @@ FRIEND_REQUEST_FRIEND_EMAIL="test.e2e.friend.$(date +%s)@example.com"
 FRIEND_REQUEST_FRIEND_PASSWORD="motdepasse123"
 FRIEND_REQUEST_REQUESTER_EMAIL="test.e2e.requester.$(date +%s)@example.com"
 FRIEND_REQUEST_REQUESTER_PASSWORD="motdepasse123"
+
+# Identifiants dédiés à messaging-send.yaml (deux comptes, destinataire +
+# expéditrice) — un suffixe "receiver"/"sender" pour rester unique même si
+# ce script tourne deux fois dans la même seconde que les variables
+# ci-dessus.
+MESSAGING_RECEIVER_EMAIL="test.e2e.receiver.$(date +%s)@example.com"
+MESSAGING_RECEIVER_PASSWORD="motdepasse123"
+MESSAGING_SENDER_EMAIL="test.e2e.sender.$(date +%s)@example.com"
+MESSAGING_SENDER_PASSWORD="motdepasse123"
+MESSAGING_FIRST_MESSAGE="Coucou, ça te dit la soirée de vendredi ?"
+MESSAGING_REPLY_MESSAGE="Oui carrément, j'ai hâte !"
 
 # Identifiants dédiés à channel-post-and-poll.yaml (deux comptes,
 # organisatrice + participante) — un suffixe "channel.org"/"channel.part"
@@ -98,6 +109,14 @@ run_flow "friend-request-flow.yaml" \
   --env FRIEND_PASSWORD="$FRIEND_REQUEST_FRIEND_PASSWORD" \
   --env REQUESTER_EMAIL="$FRIEND_REQUEST_REQUESTER_EMAIL" \
   --env REQUESTER_PASSWORD="$FRIEND_REQUEST_REQUESTER_PASSWORD"
+
+run_flow "messaging-send.yaml" \
+  --env RECEIVER_EMAIL="$MESSAGING_RECEIVER_EMAIL" \
+  --env RECEIVER_PASSWORD="$MESSAGING_RECEIVER_PASSWORD" \
+  --env SENDER_EMAIL="$MESSAGING_SENDER_EMAIL" \
+  --env SENDER_PASSWORD="$MESSAGING_SENDER_PASSWORD" \
+  --env FIRST_MESSAGE="$MESSAGING_FIRST_MESSAGE" \
+  --env REPLY_MESSAGE="$MESSAGING_REPLY_MESSAGE"
 
 run_flow "channel-post-and-poll.yaml" \
   --env ORGANIZER_EMAIL="$CHANNEL_ORGANIZER_EMAIL" \

@@ -157,6 +157,7 @@ export default function OtherProfileScreen() {
         ) : null}
 
         <PrimaryButton
+          testID="button-message-friend"
           label="Envoyer un message"
           onPress={() => router.push(`/conversation/${id}`)}
           style={styles.actionButton}

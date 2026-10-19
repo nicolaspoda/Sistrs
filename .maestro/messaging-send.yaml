@@ -1,0 +1,353 @@
+# Parcours réel d'envoi de message dans une conversation — item 4 du
+# backlog "Flows Maestro manquants" dans PROGRESS.md (ne couvrait jusqu'ici
+# que la lecture d'un message non lu déjà seedé en base, pas un envoi réel
+# dans les deux sens).
+#
+# Deux comptes participantes sont créés dans ce flow :
+#  - "Inès Caron" (RECEIVER_*) : créée en premier, jamais connectée avant
+#    d'accepter la demande d'amitié — juste là pour être trouvable par la
+#    recherche, puis pour recevoir le premier message et y répondre.
+#  - "Alice Perrin" (SENDER_*) : connectée juste après sa création,
+#    envoie la demande d'amitié à "Inès Caron", démarre une nouvelle
+#    conversation depuis son profil et envoie le premier message.
+# On vérifie ensuite côté "Inès Caron" que le message est bien reçu (badge
+# non lu + aperçu dans la liste des conversations), puis qu'une réponse
+# envoyée depuis son compte apparaît bien dans la conversation.
+#
+# Démarrer une conversation passe par le profil d'une amie
+# (app/profile/[id].tsx, bouton "Envoyer un message") plutôt que par
+# l'onglet Messages, qui ne liste que les conversations déjà existantes
+# (voir resolveConversationId dans app/conversation/[id].tsx : le
+# paramètre de route peut être un profile_id sans conversation existante
+# encore, une nouvelle conversation est alors créée à la volée).
+#
+# Recherche par le nom de famille seul ("Caron") plutôt que le nom
+# complet : app/(tabs)/friends.tsx filtre avec
+# `first_name.ilike.%query%,last_name.ilike.%query%` — un nom complet ne
+# matcherait aucun des deux champs pris séparément.
+#
+# Usage (emails uniques à chaque run pour éviter "compte déjà existant") :
+#   maestro test \
+#     --env RECEIVER_EMAIL=test.e2e.receiver.$(date +%s)@example.com \
+#     --env RECEIVER_PASSWORD=motdepasse123 \
+#     --env SENDER_EMAIL=test.e2e.sender.$(date +%s)@example.com \
+#     --env SENDER_PASSWORD=motdepasse123 \
+#     --env FIRST_MESSAGE="Coucou, ça te dit la soirée de vendredi ?" \
+#     --env REPLY_MESSAGE="Oui carrément, j'ai hâte !" \
+#     .maestro/messaging-send.yaml
+#
+# Prérequis : identiques aux autres flows de signup — pellicule du
+# Simulator avec au moins une photo, permission Photos déjà accordée à
+# l'app (les deux comptes passent par le raccourci développeur pour la
+# pièce d'identité, pas par le vrai sélecteur de photos natif).
+appId: com.nicolaspoda.sistrs
+---
+# === Compte "Inès Caron" : future amie/destinataire, créée en premier
+# pour être trouvable par la recherche une fois le compte expéditrice
+# connecté ===
+- launchApp:
+    clearState: true
+# Premier lancement après clearState : Metro doit resservir/recharger le
+# bundle JS, ce qui dépasse le délai d'attente implicite par défaut de
+# Maestro sur certaines machines — on attend explicitement plus longtemps.
+- extendedWaitUntil:
+    visible: "S'inscrire"
+    timeout: 30000
+- tapOn: "S'inscrire"
+
+# --- Étape 1 : Tes informations ---
+- tapOn:
+    id: "input-first-name"
+- inputText: "Inès"
+- tapOn:
+    id: "input-last-name"
+- inputText: "Caron"
+- tapOn: "Tes informations"  # tap sur un texte statique pour fermer le clavier (hideKeyboard non fiable ici)
+
+# Date de naissance : on garde le défaut pré-sélectionné par l'app
+# ("aujourd'hui - 25 ans", toujours majeure) plutôt que de naviguer le
+# calendrier.
+- tapOn:
+    id: "input-birth-date"
+- tapOn: "Valider"
+
+- tapOn:
+    id: "input-email"
+- inputText: "${RECEIVER_EMAIL}"
+# Maestro/XCTest ne saisit pas fiablement dans un champ secureTextEntry
+# actif — on bascule les deux champs en "mot de passe visible" AVANT de
+# taper quoi que ce soit (voir signup-participant.yaml).
+- tapOn:
+    id: "input-password-toggle-visibility"
+- tapOn:
+    id: "input-confirm-password-toggle-visibility"
+- tapOn:
+    id: "input-password"
+- inputText: "${RECEIVER_PASSWORD}"
+- tapOn:
+    id: "input-confirm-password"
+- inputText: "${RECEIVER_PASSWORD}"
+- tapOn: "Tes informations"  # ferme le clavier
+
+# "Participante" est déjà le rôle par défaut, on le confirme explicitement.
+- tapOn:
+    id: "role-participant"
+
+# --- Pièce d'identité ---
+# Raccourci développeur plutôt que le vrai sélecteur de photos natif (UI
+# système non fiable à piloter par coordonnées dans Maestro).
+- tapOn:
+    id: "link-dev-use-test-id"
+- assertVisible: "Pièce d'identité ajoutée ✓"
+- tapOn:
+    id: "button-continue-step1"
+
+# L'OCR peut renvoyer un avertissement si la date lue sur la pièce ne
+# correspond pas à la date de naissance saisie — même bouton, libellé
+# différent ("Continuer quand même"), pas de changement d'écran.
+- runFlow:
+    when:
+      visible: "Continuer quand même"
+    commands:
+      - tapOn:
+          id: "button-continue-step1"
+
+# --- Étape 2 : Tes préférences ---
+- tapOn:
+    id: "age-bracket-18-25"
+- tapOn: "Bar"
+- tapOn:
+    id: "link-dev-bypass-faceid"
+- assertVisible: "Face ID activé ✓"
+
+- tapOn:
+    id: "button-create-account"
+- assertVisible: "Compte créé avec succès.*"
+
+# === Compte "Alice Perrin" : expéditrice — créée tout de suite après (la
+# création de compte ramène à l'écran de connexion, "Inès Caron" n'est
+# jamais connectée à ce stade) ===
+- tapOn: "S'inscrire"
+
+- tapOn:
+    id: "input-first-name"
+- inputText: "Alice"
+- tapOn:
+    id: "input-last-name"
+- inputText: "Perrin"
+- tapOn: "Tes informations"
+
+- tapOn:
+    id: "input-birth-date"
+- tapOn: "Valider"
+
+- tapOn:
+    id: "input-email"
+- inputText: "${SENDER_EMAIL}"
+- tapOn:
+    id: "input-password-toggle-visibility"
+- tapOn:
+    id: "input-confirm-password-toggle-visibility"
+- tapOn:
+    id: "input-password"
+- inputText: "${SENDER_PASSWORD}"
+- tapOn:
+    id: "input-confirm-password"
+- inputText: "${SENDER_PASSWORD}"
+- tapOn: "Tes informations"
+
+- tapOn:
+    id: "role-participant"
+
+- tapOn:
+    id: "link-dev-use-test-id"
+- assertVisible: "Pièce d'identité ajoutée ✓"
+- tapOn:
+    id: "button-continue-step1"
+- runFlow:
+    when:
+      visible: "Continuer quand même"
+    commands:
+      - tapOn:
+          id: "button-continue-step1"
+
+- tapOn:
+    id: "age-bracket-18-25"
+- tapOn: "Bar"
+- tapOn:
+    id: "link-dev-bypass-faceid"
+- assertVisible: "Face ID activé ✓"
+
+- tapOn:
+    id: "button-create-account"
+- assertVisible: "Compte créé avec succès.*"
+
+# --- Connexion avec le compte "Alice Perrin" tout juste créé ---
+- tapOn:
+    id: "input-email"
+- inputText: "${SENDER_EMAIL}"
+- tapOn:
+    id: "input-password"
+- inputText: "${SENDER_PASSWORD}"
+- hideKeyboard
+- tapOn:
+    id: "button-sign-in"
+    optional: true
+# Dialogues système iOS best-effort après connexion : notifications push
+# et proposition d'enregistrer le mot de passe.
+- tapOn:
+    text: "Autoriser"
+    optional: true
+- tapOn:
+    text: "Plus tard"
+    optional: true
+- assertVisible: "Communauté vérifiée.*"
+
+# === Recherche et envoi de la demande d'amitié à "Inès Caron" ===
+- tapOn: "Amies.*"
+- tapOn: "Trouver"
+- tapOn:
+    id: "input-friend-search"
+- inputText: "Caron"
+- assertVisible: "Inès Caron"
+- tapOn:
+    id: "button-send-friend-request"
+- assertVisible: "Demande envoyée"
+
+# --- Déconnexion de "Alice Perrin" ---
+- tapOn: "Profil.*"
+- tapOn: "Se déconnecter"
+# Alert.alert natif à deux boutons ("Annuler" / "Se déconnecter") — le
+# libellé "Se déconnecter" est aussi celui du bouton qui a ouvert cette
+# alerte, mais c'est bien le bouton de l'alerte (au-dessus dans la pile de
+# vues) qui reçoit ce deuxième tap.
+- tapOn: "Se déconnecter"
+- assertVisible: "S'inscrire"
+
+# === Connexion avec "Inès Caron" : acceptation de la demande ===
+- tapOn:
+    id: "input-email"
+- inputText: "${RECEIVER_EMAIL}"
+- tapOn:
+    id: "input-password"
+- inputText: "${RECEIVER_PASSWORD}"
+- hideKeyboard
+- tapOn:
+    id: "button-sign-in"
+    optional: true
+- tapOn:
+    text: "Autoriser"
+    optional: true
+- tapOn:
+    text: "Plus tard"
+    optional: true
+- assertVisible: "Communauté vérifiée.*"
+
+# L'onglet "Demandes" est déjà celui affiché par défaut à l'arrivée sur
+# "Amies" (activeTab initial = "requests" dans friends.tsx).
+- tapOn: "Amies.*"
+- assertVisible: "Alice Perrin"
+- assertVisible: "Veut devenir ton amie"
+- tapOn:
+    id: "button-accept-friend-request"
+
+# --- Déconnexion de "Inès Caron" : on repasse par "Alice Perrin" pour
+# démarrer la conversation, l'app ne proposant pas d'envoyer un message à
+# une amie depuis son propre compte ===
+- tapOn: "Profil.*"
+- tapOn: "Se déconnecter"
+- tapOn: "Se déconnecter"
+- assertVisible: "S'inscrire"
+
+# === Reconnexion avec "Alice Perrin" : démarrage de la conversation et
+# envoi du premier message réel ===
+- tapOn:
+    id: "input-email"
+- inputText: "${SENDER_EMAIL}"
+- tapOn:
+    id: "input-password"
+- inputText: "${SENDER_PASSWORD}"
+- hideKeyboard
+- tapOn:
+    id: "button-sign-in"
+    optional: true
+- tapOn:
+    text: "Autoriser"
+    optional: true
+- tapOn:
+    text: "Plus tard"
+    optional: true
+- assertVisible: "Communauté vérifiée.*"
+
+# "Mes amies" affiche maintenant "Inès Caron" (acceptée côté de son
+# compte juste avant) — on tape sur son nom pour ouvrir son profil, comme
+# depuis l'onglet Amies > Mes amies.
+- tapOn: "Amies.*"
+- tapOn: "Mes amies.*"
+- tapOn: "Inès Caron"
+
+- tapOn:
+    id: "button-message-friend"
+
+# Nouvelle conversation, encore vide (aucun message échangé entre les deux
+# comptes jusqu'ici) — resolveConversationId crée la ligne `conversations`
+# à la volée au premier envoi.
+- tapOn:
+    id: "input-message"
+- inputText: "${FIRST_MESSAGE}"
+- tapOn:
+    id: "button-send-message"
+- assertVisible: "${FIRST_MESSAGE}"
+
+# --- Vérifie l'aperçu du dernier message dans la liste des conversations
+# (onglet Messages), sans repasser par "retour" : taper un autre onglet de
+# la tab bar bascule directement, quelle que soit la profondeur de la pile
+# de navigation sur l'onglet "Amies" (conversation poussée depuis le
+# profil, poussé depuis la liste d'amies) ---
+- tapOn: "Messages.*"
+- assertVisible: "Inès Caron"
+- assertVisible: "${FIRST_MESSAGE}"
+
+# --- Déconnexion de "Alice Perrin" ---
+- tapOn: "Profil.*"
+- tapOn: "Se déconnecter"
+- tapOn: "Se déconnecter"
+- assertVisible: "S'inscrire"
+
+# === Connexion avec "Inès Caron" : réception du message et réponse ===
+- tapOn:
+    id: "input-email"
+- inputText: "${RECEIVER_EMAIL}"
+- tapOn:
+    id: "input-password"
+- inputText: "${RECEIVER_PASSWORD}"
+- hideKeyboard
+- tapOn:
+    id: "button-sign-in"
+    optional: true
+- tapOn:
+    text: "Autoriser"
+    optional: true
+- tapOn:
+    text: "Plus tard"
+    optional: true
+- assertVisible: "Communauté vérifiée.*"
+
+# Onglet Messages : la conversation démarrée par "Alice Perrin" doit
+# apparaître avec son dernier message en aperçu, et le point rose "non lu"
+# (unreadDot) sur l'avatar — pas directement assertable par texte, on se
+# contente de vérifier le contenu du message, couvert explicitement par
+# cet item du backlog contrairement au badge seedé des autres flows.
+- tapOn: "Messages.*"
+- assertVisible: "Alice Perrin"
+- assertVisible: "${FIRST_MESSAGE}"
+- tapOn: "Alice Perrin"
+
+- assertVisible: "${FIRST_MESSAGE}"
+
+- tapOn:
+    id: "input-message"
+- inputText: "${REPLY_MESSAGE}"
+- tapOn:
+    id: "button-send-message"
+- assertVisible: "${REPLY_MESSAGE}"

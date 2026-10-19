@@ -5,8 +5,8 @@
 > entier avant de reprendre le travail, surtout après un changement de
 > compte/session Claude Code.
 
-Dernière mise à jour : 2026-10-19 (session : flow Maestro
-channel-post-and-poll ajouté, bug bloquant trouvé et corrigé — aucun point
+Dernière mise à jour : 2026-10-19 (session : flows Maestro messaging-send et
+channel-post-and-poll ajoutés, bug bloquant trouvé et corrigé — aucun point
 d'entrée UI vers le canal d'une organisatrice —, nettoyage d'une PR
 dupliquée ouverte par un run précédent/concurrent)
 
@@ -73,6 +73,62 @@ dupliquée ouverte par un run précédent/concurrent)
   mais `connectedFolders` est vide. Branche B (test E2E réel sur
   Simulator) non tentée ce run pour cette raison — branche A (tâche de
   dev) suivie à la place, qui n'a pas besoin du Mac.
+
+## Fait (session pipeline autonome — flow messaging-send)
+
+- **`.maestro/messaging-send.yaml` écrit** (item 4 du backlog "Flows
+  Maestro manquants" ci-dessous — les items 1, 2 et 3 ont déjà des PR
+  ouvertes non encore mergées, voir note juste après la liste) : envoi
+  réel d'un message dans une conversation, dans les deux sens (pas juste
+  lecture d'un message non lu déjà seedé). Deux comptes participantes
+  créés dans le même flow — "Inès Caron" (créée en premier, jamais
+  connectée avant d'accepter la demande d'amitié, juste là pour être
+  trouvable) et "Alice Perrin" (connectée tout de suite après sa
+  création, envoie la demande d'amitié puis démarre une nouvelle
+  conversation depuis le profil d'"Inès Caron" une fois la demande
+  acceptée) — puis reconnexion avec "Inès Caron" pour vérifier la
+  réception du premier message (aperçu dans la liste des conversations +
+  contenu dans le fil) et envoyer une réponse.
+  Ajouté les testID manquants (aucun n'existait avant sur ces trois
+  fichiers) : `app/(tabs)/friends.tsx` (`input-friend-search`,
+  `button-send-friend-request`, `button-accept-friend-request`),
+  `app/profile/[id].tsx` (`button-message-friend`) et
+  `app/conversation/[id].tsx` (`input-message`, `button-send-message`).
+  Wiré dans `scripts/run-maestro-suite.sh` avec ses propres comptes de
+  test générés, indépendants de `signup-participant.yaml`.
+  Validation faite ici : le flow parse correctement (`pyyaml`), `bash -n`
+  passe sur le script, et le script a été testé en isolation avec un faux
+  binaire `maestro` pour vérifier le câblage (variables d'env, nom du
+  flow, contenu des messages) — **le flow n'a en revanche pas pu être
+  exécuté sur un vrai Simulator** (voir point suivant), donc il reste à
+  valider pour de vrai au prochain run si le Mac est disponible. `tsc
+  --noEmit` ne peut pas tourner complètement dans ce sandbox (pas de
+  `node_modules` installés — limitation déjà documentée plus bas, pas
+  liée à ce changement) ; vérifié que les erreurs listées pour les trois
+  fichiers modifiés sont toutes de cette nature et aucune ne porte sur
+  les props `testID` ajoutées.
+- **Mac joignable mais aucun dossier connecté à cette session** (même
+  constat que lors des runs précédents qui ont ouvert les PR #2, #3 et
+  #4) : `get_device_info` répond (Mac allumé/déverrouillé, app Claude
+  desktop ouverte), mais `connectedFolders` est vide. Sans dossier
+  connecté, `device_bash` ne peut pas opérer dans le dossier du projet,
+  donc aucune étape nécessitant le Mac (Simulator, Metro, Maestro,
+  identifiants de seed) n'a pu être tentée ce run — branche B (test E2E)
+  non exécutée pour cette raison, pas par choix (le marqueur "Dernier run
+  E2E vert" reste donc inchangé, voir plus bas). **Action utilisateur
+  suggérée** (répétée des runs précédents, toujours pas réglée) :
+  connecter le dossier du projet à la tâche planifiée pour que les
+  prochains runs puissent réellement piloter le Simulator.
+- **Auto-enchaînement (`fire_trigger`) volontairement pas retenté ce
+  run** : le run précédent (flow `friend-request-flow.yaml`, voir PR
+  encore ouverte) avait déjà buté sur exactement ce même blocage
+  (`bound_device_absent`, Mac non lié côté tâche planifiée) en tentant de
+  s'auto-redéclencher dans une situation identique (Mac joignable mais
+  pas de dossier connecté). Conformément à la consigne "ne pas
+  redéclencher si le run précédent a buté sur exactement le même
+  blocage", ce run ne retente pas l'auto-enchaînement — le cron horaire
+  reprendra la suite (item 5, `channel-post-and-poll.yaml`) à son
+  prochain passage.
 
 ## Fait (session pipeline autonome — flow friend-request-flow)
 
@@ -535,18 +591,16 @@ lancer localement à la fin de cette section.
      haut) — écrit et câblé dans le script, pas encore exécuté pour de vrai
      sur Simulator (Mac non connecté à ce run, voir plus haut). Mergé via
      PR #4.
-  4. `messaging-send.yaml` — envoi réel d'un message dans une conversation
-     (pas juste lecture du badge "non lu" seedé). **Écrit, PR ouverte
-     mais pas encore mergée** : voir [PR
-     #5](https://github.com/nicolaspoda/Sistrs/pull/5)
-     (`feat/maestro-messaging-send-flow`). Ne pas redupliquer ce flow tant
-     que cette PR n'est pas fusionnée ou fermée.
+  4. ~~`messaging-send.yaml`~~ **fait le 2026-10-19** (voir section "Fait
+     (session pipeline autonome — flow messaging-send)" plus haut) — écrit
+     et câblé dans le script, pas encore exécuté pour de vrai sur
+     Simulator (Mac non connecté à ce run non plus). Mergé via PR #5.
   5. ~~`channel-post-and-poll.yaml`~~ **fait le 2026-10-19** (voir section
      "Fait (session pipeline autonome — flow channel-post-and-poll)" plus
      haut) — écrit et câblé dans le script, pas encore exécuté pour de
      vrai sur Simulator (Mac non connecté à ce run). A aussi permis de
      trouver et corriger un vrai bug bloquant (aucun point d'entrée UI
-     vers le canal d'une organisatrice).
+     vers le canal d'une organisatrice). Mergé via PR #7.
   6. `event-review.yaml` — avis (note + commentaire) sur un événement
      passé.
   7. `notifications.yaml` — vérifie qu'une notification in-app apparaît
@@ -556,6 +610,11 @@ lancer localement à la fin de cette section.
      réel vers Storage.
   Chaque nouveau flow doit être ajouté à `scripts/run-maestro-suite.sh` et
   à la liste lue par la tâche planifiée.
+  **Note** : les items 1 à 3 sont mergés dans `main` (PR #2, #3, #4).
+  L'item 4 a une PR ouverte (#5), écrite mais pas encore mergée — la
+  coche "fait" sur cet item n'apparaîtra ici qu'une fois cette PR
+  mergée. Prochaine tâche non bloquée pour le pipeline : item 5
+  (`channel-post-and-poll.yaml`).
 - **Backlog "prêt pour le store"** (distinct des tests, à ne traiter
   qu'une fois la couverture E2E ci-dessus avancée) : politique de
   confidentialité (obligatoire — l'app traite genre + pièce d'identité),

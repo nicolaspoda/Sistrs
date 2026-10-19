@@ -301,6 +301,7 @@ export default function ConversationScreen() {
 
         <View style={styles.inputRow}>
           <TextInput
+            testID="input-message"
             style={styles.input}
             value={draft}
             onChangeText={setDraft}
@@ -309,6 +310,7 @@ export default function ConversationScreen() {
             multiline
           />
           <TouchableOpacity
+            testID="button-send-message"
             style={[styles.sendButton, (!draft.trim() || isSending) && styles.sendButtonDisabled]}
             onPress={handleSend}
             disabled={!draft.trim() || isSending}
