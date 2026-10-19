@@ -52,6 +52,19 @@ friend-request-flow ajouté)
   des runs précédents, toujours pas réglée) : connecter le dossier du
   projet à la tâche planifiée pour que les prochains runs puissent
   réellement piloter le Simulator.
+- **`fire_trigger` (auto-enchaînement) échoue quand le Mac n'est pas
+  connecté** : en fin de ce run, comme il restait du travail non bloqué
+  dans le backlog (item 4 `messaging-send.yaml`), l'auto-déclenchement
+  prévu à l'étape 6 a été tenté mais a échoué avec
+  `bound_device_absent` ("The computer this routine runs on isn't
+  connected"). La tâche planifiée semble donc exiger un device lié pour
+  se redéclencher elle-même, même quand le run suivant n'a besoin que de
+  la branche "dev" (jamais du Mac). Conséquence : sans Mac connecté,
+  l'auto-enchaînement ne fonctionne pas du tout, seul le cron horaire
+  (s'il est bien actif) peut relancer un run — à vérifier/ajuster côté
+  réglages de la tâche planifiée (désactiver l'exigence de device liée au
+  déclenchement manuel, si possible) la prochaine fois que le Mac est
+  disponible.
 
 ## Fait (session Supabase cloud + pipeline autonome)
 
