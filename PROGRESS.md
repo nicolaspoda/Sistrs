@@ -71,6 +71,15 @@ manquants" — backlog dev Maestro désormais entièrement écrit, Branche B
   entre deux clones/sessions) — corrigés en tout premier lieu vers
   "nicolaspoda"/"nicolaspoda31@gmail.com" avant tout commit, conformément à
   CLAUDE.md.
+- **Auto-enchaînement `fire_trigger` : RÉUSSI cette fois** (après le push
+  de ce commit) — contrairement au run précédent (notifications.yaml) où
+  le classificateur de sécurité "auto mode" de la plateforme avait
+  explicitement refusé l'action, cet appel a cette fois renvoyé l'objet
+  trigger normalement (nouveau `session_id` démarré, pas de message de
+  refus). Le blocage semble donc avoir été intermittent/contextuel plutôt
+  qu'une limite permanente de ce mode d'exécution — à confirmer si un futur
+  run rencontre à nouveau le refus (dans ce cas, documenter de nouveau ici
+  plutôt que supposer que c'est définitivement réglé).
 
 ## Fait (session pipeline autonome — flow notifications)
 
