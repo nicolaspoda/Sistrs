@@ -7,11 +7,13 @@
 # Usage : ./scripts/run-maestro-suite.sh
 # Optionnel : TEST_PASSWORD=le-mot-de-passe-du-seed ./scripts/run-maestro-suite.sh
 #   (mot de passe du compte de test.participante@sistrs.app, voir
-#   supabase/dev-seed-test-participant.sql — sans ça, login.yaml et
-#   smoke_navigation.yaml sont sautés ; signup-participant.yaml,
-#   signup-organizer.yaml, event-create-and-register.yaml,
-#   friend-request-flow.yaml et messaging-send.yaml tournent dans tous
-#   les cas, chacun avec ses propres comptes générés à la volée)
+#   supabase/dev-seed-test-participant.sql — sans ça, login.yaml,
+#   smoke_navigation.yaml et event-review.yaml sont sautés ;
+#   signup-participant.yaml, signup-organizer.yaml,
+#   event-create-and-register.yaml, friend-request-flow.yaml,
+#   messaging-send.yaml, channel-post-and-poll.yaml et notifications.yaml
+#   tournent dans tous les cas, chacun avec ses propres comptes générés à
+#   la volée)
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -63,6 +65,17 @@ CHANNEL_ORGANIZER_EMAIL="test.e2e.channel.org.$(date +%s)@example.com"
 CHANNEL_ORGANIZER_PASSWORD="motdepasse123"
 CHANNEL_PARTICIPANT_EMAIL="test.e2e.channel.part.$(date +%s)@example.com"
 CHANNEL_PARTICIPANT_PASSWORD="motdepasse123"
+
+# Identifiants dédiés à notifications.yaml (trois comptes, destinataire +
+# deux expéditrices) — un suffixe "notif.recipient"/"notif.sender1"/
+# "notif.sender2" pour rester unique même si ce script tourne deux fois
+# dans la même seconde que les variables ci-dessus.
+NOTIF_RECIPIENT_EMAIL="test.e2e.notif.recipient.$(date +%s)@example.com"
+NOTIF_RECIPIENT_PASSWORD="motdepasse123"
+NOTIF_SENDER_ONE_EMAIL="test.e2e.notif.sender1.$(date +%s)@example.com"
+NOTIF_SENDER_ONE_PASSWORD="motdepasse123"
+NOTIF_SENDER_TWO_EMAIL="test.e2e.notif.sender2.$(date +%s)@example.com"
+NOTIF_SENDER_TWO_PASSWORD="motdepasse123"
 
 {
   echo "=== Run Maestro $TIMESTAMP ==="
@@ -123,6 +136,14 @@ run_flow "channel-post-and-poll.yaml" \
   --env ORGANIZER_PASSWORD="$CHANNEL_ORGANIZER_PASSWORD" \
   --env PARTICIPANT_EMAIL="$CHANNEL_PARTICIPANT_EMAIL" \
   --env PARTICIPANT_PASSWORD="$CHANNEL_PARTICIPANT_PASSWORD"
+
+run_flow "notifications.yaml" \
+  --env RECIPIENT_EMAIL="$NOTIF_RECIPIENT_EMAIL" \
+  --env RECIPIENT_PASSWORD="$NOTIF_RECIPIENT_PASSWORD" \
+  --env SENDER_ONE_EMAIL="$NOTIF_SENDER_ONE_EMAIL" \
+  --env SENDER_ONE_PASSWORD="$NOTIF_SENDER_ONE_PASSWORD" \
+  --env SENDER_TWO_EMAIL="$NOTIF_SENDER_TWO_EMAIL" \
+  --env SENDER_TWO_PASSWORD="$NOTIF_SENDER_TWO_PASSWORD"
 
 if [ -n "${TEST_PASSWORD:-}" ]; then
   run_flow "login.yaml" \
