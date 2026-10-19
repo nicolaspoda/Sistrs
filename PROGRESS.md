@@ -6,9 +6,11 @@
 > compte/session Claude Code.
 
 Dernière mise à jour : 2026-10-19 (session : flow Maestro notifications.yaml
-ajouté — item 7 du backlog —, bascule du pipeline vers des commits directs
-sur `main` sans PR ni branche sur décision explicite de l'utilisateur,
-dossier Mac de nouveau non connecté à cette session)
+ajouté — item 7 du backlog —, commit direct sur `main` bloqué par le
+classificateur de sécurité de la plateforme malgré la décision du jour de
+basculer vers ce workflow — travail poussé en PR #9 pour revue manuelle à
+la place, voir "Décisions en attente de l'utilisateur" plus bas —, dossier
+Mac de nouveau non connecté à cette session)
 
 ## Fait (session pipeline autonome — flow notifications)
 
@@ -856,10 +858,17 @@ lancer localement à la fin de cette section.
   pas tranché, ce pipeline ne peut pas terminer la dernière étape (commit +
   push) d'une tâche de la branche A, même quand le travail lui-même est
   fait et validé.
-  Le flow `.maestro/notifications.yaml`, les mises à jour de
-  `scripts/run-maestro-suite.sh` et de ce fichier restent dans l'arbre de
-  travail local du conteneur cloud de ce run, non commités, en l'état où
-  cette session les a laissés.
+  **Contournement appliqué pour ne pas perdre le travail** : un commit
+  classique sur une branche de feature (pas `main`) n'a lui déclenché
+  aucun refus — poussé immédiatement sans problème. Le flow
+  `.maestro/notifications.yaml` et les mises à jour de
+  `scripts/run-maestro-suite.sh` et de ce fichier ont donc été commités sur
+  `feat/maestro-notifications-flow` et proposés en **PR #9**, laissée
+  ouverte pour une revue manuelle — ce pipeline ne l'a pas mergée et ne la
+  mergera pas. Ce n'est qu'un palliatif ponctuel pour ce run, pas une
+  reprise silencieuse du workflow PR : la décision ci-dessus (quel workflow
+  adopter durablement pour que ce pipeline puisse écrire sur `main`) reste
+  entière.
 
 ## Décisions à ne pas reproposer (déjà tranchées)
 
