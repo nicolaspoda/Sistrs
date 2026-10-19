@@ -7,8 +7,10 @@
 > `PROGRESS_ARCHIVE.md` (déplacé là pour garder ce fichier court — le lire
 > seulement si un détail précis d'une session passée est nécessaire).
 
-Dernière mise à jour : 2026-10-19 (premier test automatisé de composant,
-`EventLocationMap` ; sessions précédentes archivées dans
+Dernière mise à jour : 2026-10-19 (premier test automatisé de composant
+`EventLocationMap`, et session pipeline autonome bloquée sur le flow
+Maestro `channel-discover-subscribe.yaml` — deux sessions distinctes,
+demandes séparées ; sessions précédentes archivées dans
 PROGRESS_ARCHIVE.md)
 
 ## Fait (session pipeline autonome — test composant EventLocationMap)
@@ -41,6 +43,40 @@ PROGRESS_ARCHIVE.md)
   Mapbox (zoom, marqueur bien positionné, tuiles qui chargent) — ça reste
   à faire manuellement par l'utilisateur sur son Mac/device avec un
   development build.
+
+## Bloqué (session pipeline autonome — flow channel-discover-subscribe)
+
+- **Tâche demandée** : écrire `.maestro/channel-discover-subscribe.yaml`
+  pour vérifier qu'une participante peut découvrir, depuis une section
+  "découvrir" de l'onglet Canaux (`app/(tabs)/channels.tsx`), un canal
+  d'une organisatrice qu'elle ne suit pas encore, s'y abonner, puis le
+  retrouver dans la section "suivis".
+- **Vérifié d'abord** qu'aucun flow équivalent n'existe déjà : rien dans
+  `PROGRESS.md`, `PROGRESS_ARCHIVE.md`, l'historique Git ou `.maestro/`
+  (seul flow canal existant : `channel-post-and-poll.yaml`).
+- **Bloqué** : cette section "découvrir" n'existe pas dans le code. Le
+  composant liste UNIQUEMENT les canaux déjà suivis, avec un commentaire
+  explicite en l'état actuel : "la découverte de nouveaux canaux se fait
+  via les publications des organisatrices (fil d'accueil / profils), pas
+  par une liste 'Découvrir' à parcourir" — décision déjà actée, pas un
+  oubli de testID. Confirmé par recherche dans tout `app/` : aucune
+  liste de canaux non suivis nulle part. Le seul chemin UI actuel pour
+  s'abonner à un canal pas encore suivi est le bouton toggle dans
+  `app/channel/[id].tsx`, atteint via le profil d'une organisatrice
+  (ex. après acceptation d'amitié — voir `channel-post-and-poll.yaml`),
+  pas via une liste parcourable.
+- **Rien modifié** : construire la section "découvrir" demandée serait un
+  ajout de fonctionnalité produit (UI + requête listant les canaux non
+  suivis), pas juste des testID manquants comme supposé dans la
+  consigne — hors périmètre d'une tâche "écrire un flow de test" et
+  contraire à une décision déjà actée dans le code. `app/(tabs)/channels.tsx`
+  n'a pas été touché, aucun flow écrit, `run-maestro-suite.sh` non modifié.
+- **Décision à prendre par l'utilisateur** : (a) construire une vraie
+  section "Découvrir" dans l'onglet Canaux (canaux des organisatrices non
+  suivies + bouton s'abonner), puis écrire le flow dessus ; (b) réécrire
+  le flow demandé pour coller au chemin UI réel (découverte via profil
+  organisatrice, comme `channel-post-and-poll.yaml`) ; ou (c) abandonner
+  cette demande.
 
 ## Repères opérationnels essentiels (voir archive pour le détail)
 
@@ -80,6 +116,11 @@ PROGRESS_ARCHIVE.md)
    visuels, et — seulement sur confirmation explicite de l'utilisateur —
    création des comptes développeur Apple/Google (payants) et config EAS
    Submit.
+5. **Décision découverte de canaux (bloquant depuis le 2026-10-19)** :
+   construire une vraie section "Découvrir" dans l'onglet Canaux, ou
+   confirmer que la découverte reste uniquement via les profils/
+   publications des organisatrices (voir section "Bloqué" ci-dessus) —
+   nécessaire avant de pouvoir écrire `channel-discover-subscribe.yaml`.
 
 ## Décisions à ne pas reproposer (déjà tranchées)
 
