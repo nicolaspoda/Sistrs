@@ -44,6 +44,15 @@ FRIEND_REQUEST_FRIEND_PASSWORD="motdepasse123"
 FRIEND_REQUEST_REQUESTER_EMAIL="test.e2e.requester.$(date +%s)@example.com"
 FRIEND_REQUEST_REQUESTER_PASSWORD="motdepasse123"
 
+# Identifiants dédiés à channel-post-and-poll.yaml (deux comptes,
+# organisatrice + participante) — un suffixe "channel.org"/"channel.part"
+# pour rester unique même si ce script tourne deux fois dans la même
+# seconde que les variables ci-dessus.
+CHANNEL_ORGANIZER_EMAIL="test.e2e.channel.org.$(date +%s)@example.com"
+CHANNEL_ORGANIZER_PASSWORD="motdepasse123"
+CHANNEL_PARTICIPANT_EMAIL="test.e2e.channel.part.$(date +%s)@example.com"
+CHANNEL_PARTICIPANT_PASSWORD="motdepasse123"
+
 {
   echo "=== Run Maestro $TIMESTAMP ==="
   echo "Email généré pour signup-participant : $SIGNUP_EMAIL"
@@ -89,6 +98,12 @@ run_flow "friend-request-flow.yaml" \
   --env FRIEND_PASSWORD="$FRIEND_REQUEST_FRIEND_PASSWORD" \
   --env REQUESTER_EMAIL="$FRIEND_REQUEST_REQUESTER_EMAIL" \
   --env REQUESTER_PASSWORD="$FRIEND_REQUEST_REQUESTER_PASSWORD"
+
+run_flow "channel-post-and-poll.yaml" \
+  --env ORGANIZER_EMAIL="$CHANNEL_ORGANIZER_EMAIL" \
+  --env ORGANIZER_PASSWORD="$CHANNEL_ORGANIZER_PASSWORD" \
+  --env PARTICIPANT_EMAIL="$CHANNEL_PARTICIPANT_EMAIL" \
+  --env PARTICIPANT_PASSWORD="$CHANNEL_PARTICIPANT_PASSWORD"
 
 if [ -n "${TEST_PASSWORD:-}" ]; then
   run_flow "login.yaml" \

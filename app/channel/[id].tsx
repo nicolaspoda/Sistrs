@@ -535,6 +535,7 @@ export default function ChannelDetailScreen() {
         {isOrganizer ? (
           <View style={styles.organizerActions}>
             <PrimaryButton
+              testID="button-toggle-new-post"
               label={showNewPost ? "Annuler" : "Nouveau post"}
               variant={showNewPost ? "outline" : "primary"}
               style={styles.organizerActionButton}
@@ -544,6 +545,7 @@ export default function ChannelDetailScreen() {
               }}
             />
             <PrimaryButton
+              testID="button-toggle-new-poll"
               label={showNewPoll ? "Annuler" : "Nouveau sondage"}
               variant={showNewPoll ? "outline" : "primary"}
               style={styles.organizerActionButton}
@@ -558,6 +560,7 @@ export default function ChannelDetailScreen() {
         {isOrganizer && showNewPost ? (
           <View style={styles.formCard}>
             <AuthTextField
+              testID="input-post-content"
               label="Contenu du post"
               placeholder="Quoi de neuf ?"
               multiline
@@ -567,6 +570,7 @@ export default function ChannelDetailScreen() {
               style={styles.multilineInput}
             />
             <PrimaryButton
+              testID="button-publish-post"
               label="Publier"
               isLoading={isSubmittingPost}
               disabled={!newPostContent.trim()}
@@ -577,10 +581,17 @@ export default function ChannelDetailScreen() {
 
         {isOrganizer && showNewPoll ? (
           <View style={styles.formCard}>
-            <AuthTextField label="Question" placeholder="Pose ta question" value={newPollQuestion} onChangeText={setNewPollQuestion} />
+            <AuthTextField
+              testID="input-poll-question"
+              label="Question"
+              placeholder="Pose ta question"
+              value={newPollQuestion}
+              onChangeText={setNewPollQuestion}
+            />
             {newPollOptions.map((option, index) => (
               <View key={index} style={styles.pollOptionInputRow}>
                 <TextInput
+                  testID={`input-poll-option-${index}`}
                   style={styles.pollOptionInput}
                   placeholder={`Option ${index + 1}`}
                   placeholderTextColor={Colors.textMuted}
@@ -599,6 +610,7 @@ export default function ChannelDetailScreen() {
               <Text style={styles.addOptionLabel}>Ajouter une option</Text>
             </TouchableOpacity>
             <PrimaryButton
+              testID="button-create-poll"
               label="Créer le sondage"
               isLoading={isSubmittingPoll}
               disabled={
