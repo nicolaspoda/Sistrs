@@ -9,8 +9,9 @@
 #   (mot de passe du compte de test.participante@sistrs.app, voir
 #   supabase/dev-seed-test-participant.sql — sans ça, login.yaml et
 #   smoke_navigation.yaml sont sautés ; signup-participant.yaml,
-#   signup-organizer.yaml et event-create-and-register.yaml tournent dans
-#   tous les cas, chacun avec ses propres comptes générés à la volée)
+#   signup-organizer.yaml, event-create-and-register.yaml et
+#   friend-request-flow.yaml tournent dans tous les cas, chacun avec ses
+#   propres comptes générés à la volée)
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -33,6 +34,15 @@ EVENT_ORGANIZER_PASSWORD="motdepasse123"
 EVENT_PARTICIPANT_EMAIL="test.e2e.part.$(date +%s)@example.com"
 EVENT_PARTICIPANT_PASSWORD="motdepasse123"
 EVENT_TITLE="Soiree karaoke E2E $(date +%s)"
+
+# Identifiants dédiés à friend-request-flow.yaml (deux comptes, future
+# amie + demandeuse) — un suffixe "friend"/"requester" pour rester unique
+# même si ce script tourne deux fois dans la même seconde que les
+# variables ci-dessus.
+FRIEND_REQUEST_FRIEND_EMAIL="test.e2e.friend.$(date +%s)@example.com"
+FRIEND_REQUEST_FRIEND_PASSWORD="motdepasse123"
+FRIEND_REQUEST_REQUESTER_EMAIL="test.e2e.requester.$(date +%s)@example.com"
+FRIEND_REQUEST_REQUESTER_PASSWORD="motdepasse123"
 
 {
   echo "=== Run Maestro $TIMESTAMP ==="
@@ -73,6 +83,12 @@ run_flow "event-create-and-register.yaml" \
   --env PARTICIPANT_EMAIL="$EVENT_PARTICIPANT_EMAIL" \
   --env PARTICIPANT_PASSWORD="$EVENT_PARTICIPANT_PASSWORD" \
   --env EVENT_TITLE="$EVENT_TITLE"
+
+run_flow "friend-request-flow.yaml" \
+  --env FRIEND_EMAIL="$FRIEND_REQUEST_FRIEND_EMAIL" \
+  --env FRIEND_PASSWORD="$FRIEND_REQUEST_FRIEND_PASSWORD" \
+  --env REQUESTER_EMAIL="$FRIEND_REQUEST_REQUESTER_EMAIL" \
+  --env REQUESTER_PASSWORD="$FRIEND_REQUEST_REQUESTER_PASSWORD"
 
 if [ -n "${TEST_PASSWORD:-}" ]; then
   run_flow "login.yaml" \

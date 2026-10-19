@@ -5,9 +5,67 @@
 > entier avant de reprendre le travail, surtout après un changement de
 > compte/session Claude Code.
 
-Dernière mise à jour : 2026-10-19 (session : flows Maestro signup-organizer
-et event-create-and-register ajoutés, bug des dates par défaut de création
-d'événement corrigé)
+Dernière mise à jour : 2026-10-19 (session : flows Maestro signup-organizer,
+event-create-and-register et friend-request-flow ajoutés, bug des dates par
+défaut de création d'événement corrigé)
+
+## Fait (session pipeline autonome — flow friend-request-flow)
+
+- **`.maestro/friend-request-flow.yaml` écrit** (item 3 du backlog "Flows
+  Maestro manquants" ci-dessous — les items 1 et 2 ont déjà des PR ouvertes
+  non encore mergées, voir note juste après la liste) : envoi réel d'une
+  demande d'amitié (pas juste lecture d'une demande seedée) et acceptation
+  côté second compte. Deux comptes participantes créés dans le même
+  flow — "Camille Rousseau" (créée en premier, jamais connectée avant la
+  fin du flow, juste là pour être trouvable) et "Manon Girard" (connectée
+  tout de suite après sa création, envoie la demande puis se déconnecte) —
+  puis reconnexion avec "Camille Rousseau" pour vérifier la demande reçue,
+  l'accepter, et confirmer que "Manon Girard" apparaît bien dans "Mes
+  amies" ensuite.
+  Ajouté de nouvelles testID (aucune n'existait avant sur cet écran) :
+  `app/(tabs)/friends.tsx` (`tab-requests`/`tab-friends`/`tab-find`,
+  `input-friend-search`, `button-send-friend-request`,
+  `button-accept-friend-request`, `button-decline-friend-request`) et
+  `app/(tabs)/profile.tsx` (`button-sign-out`, nécessaire pour changer de
+  compte dans ce flow). Wiré dans `scripts/run-maestro-suite.sh` avec ses
+  propres comptes de test générés, indépendants de `signup-participant.yaml`.
+  Validation faite ici : les deux documents YAML (config + liste de
+  commandes) parsent correctement (`pyyaml`), `bash -n` passe sur le script,
+  et le script a été testé en isolation avec un faux binaire `maestro` pour
+  vérifier le câblage (variables d'env, nom du flow) — **le flow n'a en
+  revanche pas pu être exécuté sur un vrai Simulator** (voir point suivant),
+  donc il reste à valider pour de vrai au prochain run si le Mac est
+  disponible. `tsc --noEmit` ne peut pas tourner complètement dans ce
+  sandbox (pas de `node_modules` installés, flag `--jsx` manquant côté
+  `expo/tsconfig.base` introuvable — limitation déjà documentée plus bas,
+  pas liée à ce changement) ; vérifié que les erreurs listées pour les deux
+  fichiers modifiés sont toutes de cette nature et aucune ne porte sur les
+  props `testID` ajoutées.
+- **Mac joignable mais aucun dossier connecté à cette session** (même
+  constat que lors des runs précédents qui ont ouvert les PR #2 et #3) :
+  `get_device_info` répond (Mac allumé/déverrouillé, app Claude desktop
+  ouverte), mais `connectedFolders` est vide. Sans dossier connecté,
+  `device_bash` ne peut pas opérer dans le dossier du projet, donc aucune
+  étape nécessitant le Mac (Simulator, Metro, Maestro, identifiants de
+  seed) n'a pu être tentée ce run — branche B (test E2E) non exécutée pour
+  cette raison, pas par choix (le marqueur "Dernier run E2E vert" reste
+  donc inchangé, voir plus bas). **Action utilisateur suggérée** (répétée
+  des runs précédents, toujours pas réglée) : connecter le dossier du
+  projet à la tâche planifiée pour que les prochains runs puissent
+  réellement piloter le Simulator.
+- **`fire_trigger` (auto-enchaînement) échoue quand le Mac n'est pas
+  connecté** : en fin de ce run, comme il restait du travail non bloqué
+  dans le backlog (item 4 `messaging-send.yaml`), l'auto-déclenchement
+  prévu à l'étape 6 a été tenté mais a échoué avec
+  `bound_device_absent` ("The computer this routine runs on isn't
+  connected"). La tâche planifiée semble donc exiger un device lié pour
+  se redéclencher elle-même, même quand le run suivant n'a besoin que de
+  la branche "dev" (jamais du Mac). Conséquence : sans Mac connecté,
+  l'auto-enchaînement ne fonctionne pas du tout, seul le cron horaire
+  (s'il est bien actif) peut relancer un run — à vérifier/ajuster côté
+  réglages de la tâche planifiée (désactiver l'exigence de device liée au
+  déclenchement manuel, si possible) la prochaine fois que le Mac est
+  disponible.
 
 ## Fait (session pipeline autonome — 2e run réel)
 
@@ -400,15 +458,18 @@ lancer localement à la fin de cette section.
   1. ~~`signup-organizer.yaml`~~ **fait le 2026-10-19** (voir section
      "Fait (session pipeline autonome — 1er run réel)" plus haut) — écrit
      et câblé dans le script, pas encore exécuté pour de vrai sur
-     Simulator (Mac non connecté à ce run, voir plus haut).
+     Simulator (Mac non connecté à ce run, voir plus haut). Mergé via PR #2.
   2. ~~`event-create-and-register.yaml`~~ **fait le 2026-10-19** (voir
      section "Fait (session pipeline autonome — 2e run réel)" plus haut) —
      écrit et câblé dans le script, pas encore exécuté pour de vrai sur
      Simulator (Mac non connecté à ce run non plus). A aussi permis de
      trouver et corriger un vrai bug (dates par défaut de création
-     d'événement inversées, voir plus haut).
-  3. `friend-request-flow.yaml` — envoi réel d'une demande d'amie (pas
-     juste lecture d'une demande seedée) + acceptation côté second compte.
+     d'événement inversées, voir plus haut). Mergé via PR #3.
+  3. ~~`friend-request-flow.yaml`~~ **fait le 2026-10-19** (voir section
+     "Fait (session pipeline autonome — flow friend-request-flow)" plus
+     haut) — écrit et câblé dans le script, pas encore exécuté pour de vrai
+     sur Simulator (Mac non connecté à ce run, voir plus haut). Mergé via
+     PR #4.
   4. `messaging-send.yaml` — envoi réel d'un message dans une conversation
      (pas juste lecture du badge "non lu" seedé).
   5. `channel-post-and-poll.yaml` — organisatrice crée un post + un sondage
