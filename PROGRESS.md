@@ -53,6 +53,16 @@ ajouté)
   suggérée** (répétée des runs précédents, toujours pas réglée) :
   connecter le dossier du projet à la tâche planifiée pour que les
   prochains runs puissent réellement piloter le Simulator.
+- **Auto-enchaînement (`fire_trigger`) volontairement pas retenté ce
+  run** : le run précédent (flow `friend-request-flow.yaml`, voir PR
+  encore ouverte) avait déjà buté sur exactement ce même blocage
+  (`bound_device_absent`, Mac non lié côté tâche planifiée) en tentant de
+  s'auto-redéclencher dans une situation identique (Mac joignable mais
+  pas de dossier connecté). Conformément à la consigne "ne pas
+  redéclencher si le run précédent a buté sur exactement le même
+  blocage", ce run ne retente pas l'auto-enchaînement — le cron horaire
+  reprendra la suite (item 5, `channel-post-and-poll.yaml`) à son
+  prochain passage.
 
 ## Fait (session Supabase cloud + pipeline autonome)
 
